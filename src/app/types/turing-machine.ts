@@ -21,6 +21,7 @@ export interface TuringMachineConfig {
   rejectStates: string[];
   blankSymbol: string;
   startPositions?: number[];
+  mode?: 'multi-tape' | 'multi-head';
 }
 
 export interface TapeState {

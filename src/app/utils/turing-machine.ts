@@ -88,16 +88,18 @@ export class TuringMachine {
   }
 
   private readSymbol(tapeIndex: number): string {
+    const targetTape = this.config.mode === 'multi-head' ? this.state.tapes[0] : this.state.tapes[tapeIndex];
     const tape = this.state.tapes[tapeIndex];
-    return tape.cells.get(tape.headPosition) || this.config.blankSymbol;
+    return targetTape.cells.get(tape.headPosition) || this.config.blankSymbol;
   }
 
   private writeSymbol(tapeIndex: number, symbol: string) {
+    const targetTape = this.config.mode === 'multi-head' ? this.state.tapes[0] : this.state.tapes[tapeIndex];
     const tape = this.state.tapes[tapeIndex];
     if (symbol === this.config.blankSymbol) {
-      tape.cells.delete(tape.headPosition);
+      targetTape.cells.delete(tape.headPosition);
     } else {
-      tape.cells.set(tape.headPosition, symbol);
+      targetTape.cells.set(tape.headPosition, symbol);
     }
   }
 
@@ -154,6 +156,15 @@ export class TuringMachine {
     this.state.currentState = transition.nextState;
     this.state.stepCount++;
     this.state.lastTransition = transition;
+
+    // Evaluate halting immediately
+    if (this.config.acceptStates.includes(this.state.currentState)) {
+      this.state.isAccepted = true;
+      this.state.isHalted = true;
+    } else if (this.config.rejectStates.includes(this.state.currentState)) {
+      this.state.isRejected = true;
+      this.state.isHalted = true;
+    }
 
     return true;
   }

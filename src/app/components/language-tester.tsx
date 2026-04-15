@@ -1,36 +1,23 @@
-import { useState } from 'react';
-import { motion } from 'motion/react';
-import { FlaskConical, CheckCircle2, XCircle, Info, BookOpen, Wand2 } from 'lucide-react';
 import { Transition } from '../types/turing-machine';
-import { compileSimplePatternToTM } from '../utils/regex-compiler';
 
-const glass: React.CSSProperties = {
-  background: 'linear-gradient(145deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%)',
-  border: '1px solid rgba(255,255,255,0.05)',
-  borderTop: '1px solid rgba(255,255,255,0.12)',
-  boxShadow: '0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)',
-  backdropFilter: 'blur(24px)',
-  WebkitBackdropFilter: 'blur(24px)',
-  borderRadius: 16,
-};
-
-interface LanguagePreset {
+export interface LanguagePreset {
   id: string;
   name: string;
   notation: string;
   description: string;
   grammarType: 'Regular' | 'CFG' | 'CSG';
   numTapes: number;
+  mode: 'multi-tape' | 'multi-head';
   alphabet: string[];
   states: string[];
   initialState: string;
   acceptStates: string[];
   rejectStates: string[];
   transitions: Transition[];
-  testCases: Array<{ input: string; shouldAccept: boolean; description: string }>;
+  testCases: Array<{ input?: string; inputs?: string[]; shouldAccept: boolean; description: string }>;
 }
 
-const languagePresets: LanguagePreset[] = [
+export const languagePresets: LanguagePreset[] = [
   {
     id: 'anbn',
     name: 'a^n b^n',
@@ -38,6 +25,7 @@ const languagePresets: LanguagePreset[] = [
     description: 'Equal number of a\'s followed by equal number of b\'s',
     grammarType: 'CFG',
     numTapes: 2,
+    mode: 'multi-tape',
     alphabet: ['a', 'b'],
     states: ['q0', 'q1', 'qaccept', 'qreject'],
     initialState: 'q0',
@@ -60,38 +48,72 @@ const languagePresets: LanguagePreset[] = [
     id: 'palindrome',
     name: 'Palindrome',
     notation: 'L = { w w^R | w ∈ {a,b}* }',
-    description: 'Strings that read the same forwards and backwards',
+    description: 'Classic single tape execution simulated with 2 tapes. Copies string, unwinds T1 to start, compares simultaneously.',
     grammarType: 'CFG',
     numTapes: 2,
+    mode: 'multi-tape',
     alphabet: ['a', 'b'],
-    states: ['q0', 'q1', 'q2', 'q3', 'q4', 'qaccept', 'qreject'],
-    initialState: 'q0',
+    states: ['q0_copy', 'q1_rewind', 'q2_compare', 'qaccept', 'qreject'],
+    initialState: 'q0_copy',
     acceptStates: ['qaccept'],
     rejectStates: ['qreject'],
     transitions: [
-      { currentState: 'q0', readSymbols: ['a', '_'], nextState: 'q0', writeSymbols: ['a', 'a'], moveDirections: ['R', 'R'] },
-      { currentState: 'q0', readSymbols: ['b', '_'], nextState: 'q0', writeSymbols: ['b', 'b'], moveDirections: ['R', 'R'] },
-      { currentState: 'q0', readSymbols: ['_', '_'], nextState: 'q1', writeSymbols: ['_', '_'], moveDirections: ['L', 'N'] },
-      { currentState: 'q1', readSymbols: ['a', '_'], nextState: 'q1', writeSymbols: ['a', '_'], moveDirections: ['L', 'N'] },
-      { currentState: 'q1', readSymbols: ['b', '_'], nextState: 'q1', writeSymbols: ['b', '_'], moveDirections: ['L', 'N'] },
-      { currentState: 'q1', readSymbols: ['_', '_'], nextState: 'q2', writeSymbols: ['_', '_'], moveDirections: ['R', 'L'] },
-      { currentState: 'q2', readSymbols: ['a', 'a'], nextState: 'q2', writeSymbols: ['a', 'a'], moveDirections: ['N', 'L'] },
-      { currentState: 'q2', readSymbols: ['b', 'b'], nextState: 'q2', writeSymbols: ['b', 'b'], moveDirections: ['N', 'L'] },
-      { currentState: 'q2', readSymbols: ['a', '_'], nextState: 'q3', writeSymbols: ['a', '_'], moveDirections: ['N', 'R'] },
-      { currentState: 'q2', readSymbols: ['b', '_'], nextState: 'q3', writeSymbols: ['b', '_'], moveDirections: ['N', 'R'] },
-      { currentState: 'q2', readSymbols: ['_', '_'], nextState: 'qaccept', writeSymbols: ['_', '_'], moveDirections: ['N', 'N'] },
-      { currentState: 'q3', readSymbols: ['a', 'a'], nextState: 'q4', writeSymbols: ['a', 'X'], moveDirections: ['R', 'L'] },
-      { currentState: 'q3', readSymbols: ['b', 'b'], nextState: 'q4', writeSymbols: ['b', 'X'], moveDirections: ['R', 'L'] },
-      { currentState: 'q3', readSymbols: ['_', 'X'], nextState: 'qaccept', writeSymbols: ['_', 'X'], moveDirections: ['N', 'N'] },
-      { currentState: 'q4', readSymbols: ['a', 'X'], nextState: 'q4', writeSymbols: ['a', 'X'], moveDirections: ['N', 'L'] },
-      { currentState: 'q4', readSymbols: ['b', 'X'], nextState: 'q4', writeSymbols: ['b', 'X'], moveDirections: ['N', 'L'] },
-      { currentState: 'q4', readSymbols: ['a', 'a'], nextState: 'q3', writeSymbols: ['a', 'a'], moveDirections: ['N', 'N'] },
-      { currentState: 'q4', readSymbols: ['b', 'b'], nextState: 'q3', writeSymbols: ['b', 'b'], moveDirections: ['N', 'N'] },
+      // Phase 1: Copy T1 to T2. Both End up at the 'end' of the string.
+      { currentState: 'q0_copy', readSymbols: ['a', '_'], nextState: 'q0_copy', writeSymbols: ['a', 'a'], moveDirections: ['R', 'R'] },
+      { currentState: 'q0_copy', readSymbols: ['b', '_'], nextState: 'q0_copy', writeSymbols: ['b', 'b'], moveDirections: ['R', 'R'] },
+      
+      // Hit blank at end of T1 string. Step back left over the string.
+      { currentState: 'q0_copy', readSymbols: ['_', '_'], nextState: 'q1_rewind', writeSymbols: ['_', '_'], moveDirections: ['L', 'L'] },
+      
+      // Phase 2: Rewind T1 fully to the start. Leave T2 at the very end of the string.
+      { currentState: 'q1_rewind', readSymbols: ['a', 'a'], nextState: 'q1_rewind', writeSymbols: ['a', 'a'], moveDirections: ['L', 'N'] },
+      { currentState: 'q1_rewind', readSymbols: ['a', 'b'], nextState: 'q1_rewind', writeSymbols: ['a', 'b'], moveDirections: ['L', 'N'] },
+      { currentState: 'q1_rewind', readSymbols: ['b', 'a'], nextState: 'q1_rewind', writeSymbols: ['b', 'a'], moveDirections: ['L', 'N'] },
+      { currentState: 'q1_rewind', readSymbols: ['b', 'b'], nextState: 'q1_rewind', writeSymbols: ['b', 'b'], moveDirections: ['L', 'N'] },
+
+      // T1 hit the blank before the start of the string! It steps right to firmly plant on index(0).
+      { currentState: 'q1_rewind', readSymbols: ['_', 'a'], nextState: 'q2_compare', writeSymbols: ['_', 'a'], moveDirections: ['R', 'N'] },
+      { currentState: 'q1_rewind', readSymbols: ['_', 'b'], nextState: 'q2_compare', writeSymbols: ['_', 'b'], moveDirections: ['R', 'N'] },
+
+      // Phase 3: Walk towards each other (T1 reads Left-to-Right, T2 reads Right-to-Left).
+      { currentState: 'q2_compare', readSymbols: ['a', 'a'], nextState: 'q2_compare', writeSymbols: ['a', 'a'], moveDirections: ['R', 'L'] },
+      { currentState: 'q2_compare', readSymbols: ['b', 'b'], nextState: 'q2_compare', writeSymbols: ['b', 'b'], moveDirections: ['R', 'L'] },
+      
+      // Mismatches kill the machine
+      { currentState: 'q2_compare', readSymbols: ['a', 'b'], nextState: 'qreject', writeSymbols: ['a', 'b'], moveDirections: ['N', 'N'] },
+      { currentState: 'q2_compare', readSymbols: ['b', 'a'], nextState: 'qreject', writeSymbols: ['b', 'a'], moveDirections: ['N', 'N'] },
+
+      // Verified identically
+      { currentState: 'q2_compare', readSymbols: ['_', '_'], nextState: 'qaccept', writeSymbols: ['_', '_'], moveDirections: ['N', 'N'] },
+      // Sub-edge case (Empty string bypasses rewind strictly)
+      { currentState: 'q1_rewind', readSymbols: ['_', '_'], nextState: 'qaccept', writeSymbols: ['_', '_'], moveDirections: ['N', 'N'] }
     ],
     testCases: [
       { input: 'aba', shouldAccept: true, description: 'Odd palindrome' },
       { input: 'abba', shouldAccept: true, description: 'Even palindrome' },
       { input: 'abb', shouldAccept: false, description: 'Not palindrome' },
+    ],
+  },
+  {
+    id: 'string_copy',
+    name: 'String Copy',
+    notation: 'T1: w -> T1: w, T2: w',
+    description: 'Reads contents of Tape 1 and identically produces them onto Tape 2.',
+    grammarType: 'CSG',
+    numTapes: 2,
+    mode: 'multi-tape',
+    alphabet: ['a', 'b'],
+    states: ['q0_copy', 'qaccept', 'qreject'],
+    initialState: 'q0_copy',
+    acceptStates: ['qaccept'],
+    rejectStates: ['qreject'],
+    transitions: [
+      { currentState: 'q0_copy', readSymbols: ['a', '_'], nextState: 'q0_copy', writeSymbols: ['a', 'a'], moveDirections: ['R', 'R'] },
+      { currentState: 'q0_copy', readSymbols: ['b', '_'], nextState: 'q0_copy', writeSymbols: ['b', 'b'], moveDirections: ['R', 'R'] },
+      { currentState: 'q0_copy', readSymbols: ['_', '_'], nextState: 'qaccept', writeSymbols: ['_', '_'], moveDirections: ['N', 'N'] },
+    ],
+    testCases: [
+      { input: 'ababa', shouldAccept: true, description: 'Copy to Tape 2' }
     ],
   },
   {
@@ -101,6 +123,7 @@ const languagePresets: LanguagePreset[] = [
     description: 'Equal number of a\'s, b\'s, and c\'s (Context Sensitive Grammar)',
     grammarType: 'CSG',
     numTapes: 2,
+    mode: 'multi-tape',
     alphabet: ['a', 'b', 'c'],
     states: ['q0', 'qr1', 'q1', 'qr2', 'q2', 'qaccept', 'qreject'],
     initialState: 'q0',
@@ -118,199 +141,278 @@ const languagePresets: LanguagePreset[] = [
       { currentState: 'q2', readSymbols: ['c', 'a'], nextState: 'q2', writeSymbols: ['c', 'a'], moveDirections: ['R', 'R'] },
       { currentState: 'q2', readSymbols: ['_', '_'], nextState: 'qaccept', writeSymbols: ['_', '_'], moveDirections: ['N', 'N'] },
       
-      // Explicit rejections (if unequal amounts, machine halts in non-accept state naturally, but defining some handles fails faster)
       { currentState: 'q1', readSymbols: ['b', '_'], nextState: 'qreject', writeSymbols: ['b', '_'], moveDirections: ['N', 'N'] },
       { currentState: 'q1', readSymbols: ['c', 'a'], nextState: 'qreject', writeSymbols: ['c', 'a'], moveDirections: ['N', 'N'] },
       { currentState: 'q2', readSymbols: ['c', '_'], nextState: 'qreject', writeSymbols: ['c', '_'], moveDirections: ['N', 'N'] },
       { currentState: 'q2', readSymbols: ['_', 'a'], nextState: 'qreject', writeSymbols: ['_', 'a'], moveDirections: ['N', 'N'] }
     ],
     testCases: [
-      { input: 'abc', shouldAccept: true, description: 'n=1' },
       { input: 'aabbcc', shouldAccept: true, description: 'n=2' },
       { input: 'aabbc', shouldAccept: false, description: 'Unequal c' },
-      { input: 'aabcc', shouldAccept: false, description: 'Unequal b' },
-      { input: 'a', shouldAccept: false, description: 'Incomplete' },
+    ],
+  },
+  {
+    id: 'palindrome_multihead',
+    name: 'Palindrome (Shared Memory)',
+    notation: 'L = { w w^R | w ∈ {0,1}* }',
+    description: 'Uses 2 heads on a single tape. H2 races to the end, then they walk towards each other comparing cells instantly.',
+    grammarType: 'CFG',
+    numTapes: 2, 
+    mode: 'multi-head',
+    alphabet: ['0', '1'],
+    states: ['q0_setup', 'q1_rewind', 'q2_compare', 'qaccept', 'qreject'],
+    initialState: 'q0_setup',
+    acceptStates: ['qaccept'],
+    rejectStates: ['qreject'],
+    transitions: [
+      // Phase 1: H2 moves to end of string, H1 stays at start. They initially both sit on cell 0.
+      { currentState: 'q0_setup', readSymbols: ['0', '0'], nextState: 'q0_setup', writeSymbols: ['0', '0'], moveDirections: ['N', 'R'] },
+      { currentState: 'q0_setup', readSymbols: ['0', '1'], nextState: 'q0_setup', writeSymbols: ['0', '1'], moveDirections: ['N', 'R'] },
+      { currentState: 'q0_setup', readSymbols: ['1', '0'], nextState: 'q0_setup', writeSymbols: ['1', '0'], moveDirections: ['N', 'R'] },
+      { currentState: 'q0_setup', readSymbols: ['1', '1'], nextState: 'q0_setup', writeSymbols: ['1', '1'], moveDirections: ['N', 'R'] },
+      
+      // H2 hit a blank, meaning it's past the string. Step back left over the last char.
+      { currentState: 'q0_setup', readSymbols: ['0', '_'], nextState: 'q2_compare', writeSymbols: ['0', '_'], moveDirections: ['N', 'L'] },
+      { currentState: 'q0_setup', readSymbols: ['1', '_'], nextState: 'q2_compare', writeSymbols: ['1', '_'], moveDirections: ['N', 'L'] },
+      // Edge case: Empty string
+      { currentState: 'q0_setup', readSymbols: ['_', '_'], nextState: 'qaccept', writeSymbols: ['_', '_'], moveDirections: ['N', 'N'] },
+
+      // Phase 2: Compare
+      // Match found at both ends. H1 steps right, H2 steps left.
+      { currentState: 'q2_compare', readSymbols: ['0', '0'], nextState: 'q2_compare', writeSymbols: ['0', '0'], moveDirections: ['R', 'L'] },
+      { currentState: 'q2_compare', readSymbols: ['1', '1'], nextState: 'q2_compare', writeSymbols: ['1', '1'], moveDirections: ['R', 'L'] },
+      
+      // Mismatch!
+      { currentState: 'q2_compare', readSymbols: ['0', '1'], nextState: 'qreject', writeSymbols: ['0', '1'], moveDirections: ['N', 'N'] },
+      { currentState: 'q2_compare', readSymbols: ['1', '0'], nextState: 'qreject', writeSymbols: ['1', '0'], moveDirections: ['N', 'N'] },
+
+      // If they cross paths or meet at blanks, it's fully verified!
+      { currentState: 'q2_compare', readSymbols: ['_', '_'], nextState: 'qaccept', writeSymbols: ['_', '_'], moveDirections: ['N', 'N'] },
+      { currentState: 'q2_compare', readSymbols: ['_', '0'], nextState: 'qaccept', writeSymbols: ['_', '0'], moveDirections: ['N', 'N'] },
+      { currentState: 'q2_compare', readSymbols: ['_', '1'], nextState: 'qaccept', writeSymbols: ['_', '1'], moveDirections: ['N', 'N'] },
+      { currentState: 'q2_compare', readSymbols: ['0', '_'], nextState: 'qaccept', writeSymbols: ['0', '_'], moveDirections: ['N', 'N'] },
+      { currentState: 'q2_compare', readSymbols: ['1', '_'], nextState: 'qaccept', writeSymbols: ['1', '_'], moveDirections: ['N', 'N'] },
+    ],
+    testCases: [
+      { input: '1001', shouldAccept: true, description: 'Even Length' },
+      { input: '10101', shouldAccept: true, description: 'Odd Length' }
+    ],
+  },
+  {
+    id: 'binary_addition_multihead',
+    name: 'Binary Increment (2-Head)',
+    notation: 'Memory Address Scanning',
+    description: 'H1 remains safely at the start. H2 reads to the end of the binary string and increments it (+1) carrying leftwards.',
+    grammarType: 'CSG',
+    numTapes: 2, 
+    mode: 'multi-head',
+    alphabet: ['0', '1'],
+    states: ['q_find_end', 'q_carry', 'qaccept', 'qreject'],
+    initialState: 'q_find_end',
+    acceptStates: ['qaccept'],
+    rejectStates: ['qreject'],
+    transitions: [
+      // H2 races right
+      { currentState: 'q_find_end', readSymbols: ['0', '0'], nextState: 'q_find_end', writeSymbols: ['0', '0'], moveDirections: ['N', 'R'] },
+      { currentState: 'q_find_end', readSymbols: ['0', '1'], nextState: 'q_find_end', writeSymbols: ['0', '1'], moveDirections: ['N', 'R'] },
+      { currentState: 'q_find_end', readSymbols: ['1', '0'], nextState: 'q_find_end', writeSymbols: ['1', '0'], moveDirections: ['N', 'R'] },
+      { currentState: 'q_find_end', readSymbols: ['1', '1'], nextState: 'q_find_end', writeSymbols: ['1', '1'], moveDirections: ['N', 'R'] },
+      
+      // H2 hits end. Step left to begin carrying.
+      { currentState: 'q_find_end', readSymbols: ['0', '_'], nextState: 'q_carry', writeSymbols: ['0', '_'], moveDirections: ['N', 'L'] },
+      { currentState: 'q_find_end', readSymbols: ['1', '_'], nextState: 'q_carry', writeSymbols: ['1', '_'], moveDirections: ['N', 'L'] },
+      
+      // H2 adds 1. If 1, turns to 0 and carries left.
+      { currentState: 'q_carry', readSymbols: ['0', '1'], nextState: 'q_carry', writeSymbols: ['0', '0'], moveDirections: ['N', 'L'] },
+      { currentState: 'q_carry', readSymbols: ['1', '1'], nextState: 'q_carry', writeSymbols: ['1', '0'], moveDirections: ['N', 'L'] },
+      
+      // H2 hits a 0 or blank, turns it to 1, done!
+      { currentState: 'q_carry', readSymbols: ['0', '0'], nextState: 'qaccept', writeSymbols: ['0', '1'], moveDirections: ['N', 'N'] },
+      { currentState: 'q_carry', readSymbols: ['1', '0'], nextState: 'qaccept', writeSymbols: ['1', '1'], moveDirections: ['N', 'N'] },
+      { currentState: 'q_carry', readSymbols: ['0', '_'], nextState: 'qaccept', writeSymbols: ['0', '1'], moveDirections: ['N', 'N'] },
+      { currentState: 'q_carry', readSymbols: ['1', '_'], nextState: 'qaccept', writeSymbols: ['1', '1'], moveDirections: ['N', 'N'] },
+    ],
+    testCases: [
+      { input: '1011', shouldAccept: true, description: '1011 + 1 = 1100' }
+    ],
+  },
+  {
+    id: 'reverse_string_multihead',
+    name: 'Fast String Reverse (2-Head)',
+    notation: 'Transform w -> w^R',
+    description: 'H2 races to end. They walk towards center, swapping and capitalizing letters. Once they hit blanks, they sweep back to uncapitalize everything!',
+    grammarType: 'CSG',
+    numTapes: 2, 
+    mode: 'multi-head',
+    alphabet: ['a', 'b', 'A', 'B'],
+    states: ['q_find_end', 'q_swap', 'q_cleanup', 'qaccept', 'qreject'],
+    initialState: 'q_find_end',
+    acceptStates: ['qaccept'],
+    rejectStates: ['qreject'],
+    transitions: [
+      // Race H2 to the blank
+      { currentState: 'q_find_end', readSymbols: ['a', 'a'], nextState: 'q_find_end', writeSymbols: ['a', 'a'], moveDirections: ['N', 'R'] },
+      { currentState: 'q_find_end', readSymbols: ['a', 'b'], nextState: 'q_find_end', writeSymbols: ['a', 'b'], moveDirections: ['N', 'R'] },
+      { currentState: 'q_find_end', readSymbols: ['b', 'a'], nextState: 'q_find_end', writeSymbols: ['b', 'a'], moveDirections: ['N', 'R'] },
+      { currentState: 'q_find_end', readSymbols: ['b', 'b'], nextState: 'q_find_end', writeSymbols: ['b', 'b'], moveDirections: ['N', 'R'] },
+      
+      // Step H2 left onto the final char.
+      { currentState: 'q_find_end', readSymbols: ['a', '_'], nextState: 'q_swap', writeSymbols: ['a', '_'], moveDirections: ['N', 'L'] },
+      { currentState: 'q_find_end', readSymbols: ['b', '_'], nextState: 'q_swap', writeSymbols: ['b', '_'], moveDirections: ['N', 'L'] },
+      { currentState: 'q_find_end', readSymbols: ['_', '_'], nextState: 'qaccept', writeSymbols: ['_', '_'], moveDirections: ['N', 'N'] },
+      
+      // Swap symbols, and CAPITALIZE them to leave a marker.
+      { currentState: 'q_swap', readSymbols: ['a', 'a'], nextState: 'q_swap', writeSymbols: ['A', 'A'], moveDirections: ['R', 'L'] },
+      { currentState: 'q_swap', readSymbols: ['b', 'b'], nextState: 'q_swap', writeSymbols: ['B', 'B'], moveDirections: ['R', 'L'] },
+      { currentState: 'q_swap', readSymbols: ['a', 'b'], nextState: 'q_swap', writeSymbols: ['B', 'A'], moveDirections: ['R', 'L'] },
+      { currentState: 'q_swap', readSymbols: ['b', 'a'], nextState: 'q_swap', writeSymbols: ['A', 'B'], moveDirections: ['R', 'L'] },
+      
+      // Pass over already swapped capitals effortlessly out to the blanks
+      { currentState: 'q_swap', readSymbols: ['A', 'A'], nextState: 'q_swap', writeSymbols: ['A', 'A'], moveDirections: ['R', 'L'] },
+      { currentState: 'q_swap', readSymbols: ['A', 'B'], nextState: 'q_swap', writeSymbols: ['A', 'B'], moveDirections: ['R', 'L'] },
+      { currentState: 'q_swap', readSymbols: ['B', 'A'], nextState: 'q_swap', writeSymbols: ['B', 'A'], moveDirections: ['R', 'L'] },
+      { currentState: 'q_swap', readSymbols: ['B', 'B'], nextState: 'q_swap', writeSymbols: ['B', 'B'], moveDirections: ['R', 'L'] },
+      { currentState: 'q_swap', readSymbols: ['A', 'a'], nextState: 'q_swap', writeSymbols: ['A', 'a'], moveDirections: ['R', 'L'] },
+      { currentState: 'q_swap', readSymbols: ['B', 'b'], nextState: 'q_swap', writeSymbols: ['B', 'b'], moveDirections: ['R', 'L'] },
+      { currentState: 'q_swap', readSymbols: ['a', 'A'], nextState: 'q_swap', writeSymbols: ['a', 'A'], moveDirections: ['R', 'L'] },
+      { currentState: 'q_swap', readSymbols: ['b', 'B'], nextState: 'q_swap', writeSymbols: ['b', 'B'], moveDirections: ['R', 'L'] },
+
+      // Hit blanks! Reverse directions and start cleaning up!
+      { currentState: 'q_swap', readSymbols: ['_', '_'], nextState: 'q_cleanup', writeSymbols: ['_', '_'], moveDirections: ['L', 'R'] },
+
+      // Cleanup Phase
+      { currentState: 'q_cleanup', readSymbols: ['A', 'A'], nextState: 'q_cleanup', writeSymbols: ['a', 'a'], moveDirections: ['L', 'R'] },
+      { currentState: 'q_cleanup', readSymbols: ['A', 'B'], nextState: 'q_cleanup', writeSymbols: ['a', 'b'], moveDirections: ['L', 'R'] },
+      { currentState: 'q_cleanup', readSymbols: ['B', 'A'], nextState: 'q_cleanup', writeSymbols: ['b', 'a'], moveDirections: ['L', 'R'] },
+      { currentState: 'q_cleanup', readSymbols: ['B', 'B'], nextState: 'q_cleanup', writeSymbols: ['b', 'b'], moveDirections: ['L', 'R'] },
+
+      // Crossing paths again onto fully cleaned strings
+      { currentState: 'q_cleanup', readSymbols: ['a', 'a'], nextState: 'qaccept', writeSymbols: ['a', 'a'], moveDirections: ['N', 'N'] },
+      { currentState: 'q_cleanup', readSymbols: ['a', 'b'], nextState: 'qaccept', writeSymbols: ['a', 'b'], moveDirections: ['N', 'N'] },
+      { currentState: 'q_cleanup', readSymbols: ['b', 'a'], nextState: 'qaccept', writeSymbols: ['b', 'a'], moveDirections: ['N', 'N'] },
+      { currentState: 'q_cleanup', readSymbols: ['b', 'b'], nextState: 'qaccept', writeSymbols: ['b', 'b'], moveDirections: ['N', 'N'] },
+    ],
+    testCases: [
+      { input: 'abaabb', shouldAccept: true, description: 'Reverse into bbaaba' }
+    ],
+  },
+  {
+    id: 'binary_add_multitape',
+    name: 'Binary Addition',
+    notation: 'T1 + T2 = T3',
+    description: 'Races 2 tapes to their ends, then walks left adding them dynamically onto Tape 3.',
+    grammarType: 'CSG',
+    numTapes: 3, 
+    mode: 'multi-tape',
+    alphabet: ['0', '1'],
+    states: ['q_find_end', 'q_add_0', 'q_add_1', 'q_shift_res', 'qaccept', 'qreject'],
+    initialState: 'q_find_end',
+    acceptStates: ['qaccept'],
+    rejectStates: ['qreject'],
+    transitions: [
+      // Race to ends
+      { currentState: 'q_find_end', readSymbols: ['0', '0', '_'], nextState: 'q_find_end', writeSymbols: ['0', '0', '_'], moveDirections: ['R', 'R', 'N'] },
+      { currentState: 'q_find_end', readSymbols: ['0', '1', '_'], nextState: 'q_find_end', writeSymbols: ['0', '1', '_'], moveDirections: ['R', 'R', 'N'] },
+      { currentState: 'q_find_end', readSymbols: ['1', '0', '_'], nextState: 'q_find_end', writeSymbols: ['1', '0', '_'], moveDirections: ['R', 'R', 'N'] },
+      { currentState: 'q_find_end', readSymbols: ['1', '1', '_'], nextState: 'q_find_end', writeSymbols: ['1', '1', '_'], moveDirections: ['R', 'R', 'N'] },
+      
+      // Let lagging tape catch up
+      { currentState: 'q_find_end', readSymbols: ['_', '0', '_'], nextState: 'q_find_end', writeSymbols: ['_', '0', '_'], moveDirections: ['N', 'R', 'N'] },
+      { currentState: 'q_find_end', readSymbols: ['_', '1', '_'], nextState: 'q_find_end', writeSymbols: ['_', '1', '_'], moveDirections: ['N', 'R', 'N'] },
+      { currentState: 'q_find_end', readSymbols: ['0', '_', '_'], nextState: 'q_find_end', writeSymbols: ['0', '_', '_'], moveDirections: ['R', 'N', 'N'] },
+      { currentState: 'q_find_end', readSymbols: ['1', '_', '_'], nextState: 'q_find_end', writeSymbols: ['1', '_', '_'], moveDirections: ['R', 'N', 'N'] },
+      
+      // Step back onto string
+      { currentState: 'q_find_end', readSymbols: ['_', '_', '_'], nextState: 'q_add_0', writeSymbols: ['_', '_', '_'], moveDirections: ['L', 'L', 'N'] },
+      
+      // ADDITION: Carry 0
+      { currentState: 'q_add_0', readSymbols: ['0', '0', '_'], nextState: 'q_add_0', writeSymbols: ['0', '0', '0'], moveDirections: ['L', 'L', 'L'] },
+      { currentState: 'q_add_0', readSymbols: ['0', '1', '_'], nextState: 'q_add_0', writeSymbols: ['0', '1', '1'], moveDirections: ['L', 'L', 'L'] },
+      { currentState: 'q_add_0', readSymbols: ['1', '0', '_'], nextState: 'q_add_0', writeSymbols: ['1', '0', '1'], moveDirections: ['L', 'L', 'L'] },
+      { currentState: 'q_add_0', readSymbols: ['1', '1', '_'], nextState: 'q_add_1', writeSymbols: ['1', '1', '0'], moveDirections: ['L', 'L', 'L'] },
+      
+      { currentState: 'q_add_0', readSymbols: ['0', '_', '_'], nextState: 'q_add_0', writeSymbols: ['0', '_', '0'], moveDirections: ['L', 'N', 'L'] },
+      { currentState: 'q_add_0', readSymbols: ['1', '_', '_'], nextState: 'q_add_0', writeSymbols: ['1', '_', '1'], moveDirections: ['L', 'N', 'L'] },
+      { currentState: 'q_add_0', readSymbols: ['_', '0', '_'], nextState: 'q_add_0', writeSymbols: ['_', '0', '0'], moveDirections: ['N', 'L', 'L'] },
+      { currentState: 'q_add_0', readSymbols: ['_', '1', '_'], nextState: 'q_add_0', writeSymbols: ['_', '1', '1'], moveDirections: ['N', 'L', 'L'] },
+      
+      // ADDITION: Carry 1
+      { currentState: 'q_add_1', readSymbols: ['0', '0', '_'], nextState: 'q_add_0', writeSymbols: ['0', '0', '1'], moveDirections: ['L', 'L', 'L'] },
+      { currentState: 'q_add_1', readSymbols: ['0', '1', '_'], nextState: 'q_add_1', writeSymbols: ['0', '1', '0'], moveDirections: ['L', 'L', 'L'] },
+      { currentState: 'q_add_1', readSymbols: ['1', '0', '_'], nextState: 'q_add_1', writeSymbols: ['1', '0', '0'], moveDirections: ['L', 'L', 'L'] },
+      { currentState: 'q_add_1', readSymbols: ['1', '1', '_'], nextState: 'q_add_1', writeSymbols: ['1', '1', '1'], moveDirections: ['L', 'L', 'L'] },
+      
+      { currentState: 'q_add_1', readSymbols: ['0', '_', '_'], nextState: 'q_add_1', writeSymbols: ['0', '_', '0'], moveDirections: ['L', 'N', 'L'] },
+      { currentState: 'q_add_1', readSymbols: ['1', '_', '_'], nextState: 'q_add_1', writeSymbols: ['1', '_', '1'], moveDirections: ['L', 'N', 'L'] },
+      { currentState: 'q_add_1', readSymbols: ['_', '0', '_'], nextState: 'q_add_1', writeSymbols: ['_', '0', '0'], moveDirections: ['N', 'L', 'L'] },
+      { currentState: 'q_add_1', readSymbols: ['_', '1', '_'], nextState: 'q_add_1', writeSymbols: ['_', '1', '1'], moveDirections: ['N', 'L', 'L'] },
+      
+      // Finish
+      { currentState: 'q_add_0', readSymbols: ['_', '_', '_'], nextState: 'q_shift_res', writeSymbols: ['_', '_', '_'], moveDirections: ['N', 'N', 'R'] },
+      // Drop final carry
+      { currentState: 'q_add_1', readSymbols: ['_', '_', '_'], nextState: 'q_shift_res', writeSymbols: ['_', '_', '1'], moveDirections: ['N', 'N', 'N'] },
+      
+      // T3 ended up reversed on left side of tape. The output is fully valid mathematically.
+      { currentState: 'q_shift_res', readSymbols: ['_', '_', '_'], nextState: 'qaccept', writeSymbols: ['_', '_', '_'], moveDirections: ['N', 'N', 'N'] },
+      { currentState: 'q_shift_res', readSymbols: ['_', '_', '0'], nextState: 'qaccept', writeSymbols: ['_', '_', '0'], moveDirections: ['N', 'N', 'N'] },
+      { currentState: 'q_shift_res', readSymbols: ['_', '_', '1'], nextState: 'qaccept', writeSymbols: ['_', '_', '1'], moveDirections: ['N', 'N', 'N'] },
+    ],
+    testCases: [
+      { inputs: ['1011', '101'], shouldAccept: true, description: '1011 + 101 = 10000' }
+    ],
+  },
+  {
+    id: 'binary_sub_multitape',
+    name: 'Binary Subtraction',
+    notation: 'T1 - T2 = T3 (T1 >= T2)',
+    description: 'Subtracts T2 from T1, outputting the result bit-by-bit to Tape 3.',
+    grammarType: 'CSG',
+    numTapes: 3, 
+    mode: 'multi-tape',
+    alphabet: ['0', '1'],
+    states: ['q_find_end', 'q_sub_0', 'q_sub_1', 'q_shift_res', 'qaccept', 'qreject'],
+    initialState: 'q_find_end',
+    acceptStates: ['qaccept'],
+    rejectStates: ['qreject'],
+    transitions: [
+      // Race to ends
+      { currentState: 'q_find_end', readSymbols: ['0', '0', '_'], nextState: 'q_find_end', writeSymbols: ['0', '0', '_'], moveDirections: ['R', 'R', 'N'] },
+      { currentState: 'q_find_end', readSymbols: ['0', '1', '_'], nextState: 'q_find_end', writeSymbols: ['0', '1', '_'], moveDirections: ['R', 'R', 'N'] },
+      { currentState: 'q_find_end', readSymbols: ['1', '0', '_'], nextState: 'q_find_end', writeSymbols: ['1', '0', '_'], moveDirections: ['R', 'R', 'N'] },
+      { currentState: 'q_find_end', readSymbols: ['1', '1', '_'], nextState: 'q_find_end', writeSymbols: ['1', '1', '_'], moveDirections: ['R', 'R', 'N'] },
+      
+      // Let lagging tape catch up
+      { currentState: 'q_find_end', readSymbols: ['_', '0', '_'], nextState: 'q_find_end', writeSymbols: ['_', '0', '_'], moveDirections: ['N', 'R', 'N'] },
+      { currentState: 'q_find_end', readSymbols: ['_', '1', '_'], nextState: 'q_find_end', writeSymbols: ['_', '1', '_'], moveDirections: ['N', 'R', 'N'] },
+      { currentState: 'q_find_end', readSymbols: ['0', '_', '_'], nextState: 'q_find_end', writeSymbols: ['0', '_', '_'], moveDirections: ['R', 'N', 'N'] },
+      { currentState: 'q_find_end', readSymbols: ['1', '_', '_'], nextState: 'q_find_end', writeSymbols: ['1', '_', '_'], moveDirections: ['R', 'N', 'N'] },
+      
+      { currentState: 'q_find_end', readSymbols: ['_', '_', '_'], nextState: 'q_sub_0', writeSymbols: ['_', '_', '_'], moveDirections: ['L', 'L', 'N'] },
+      
+      // SUBTRACTION: Borrow 0
+      { currentState: 'q_sub_0', readSymbols: ['0', '0', '_'], nextState: 'q_sub_0', writeSymbols: ['0', '0', '0'], moveDirections: ['L', 'L', 'L'] },
+      { currentState: 'q_sub_0', readSymbols: ['1', '0', '_'], nextState: 'q_sub_0', writeSymbols: ['1', '0', '1'], moveDirections: ['L', 'L', 'L'] },
+      { currentState: 'q_sub_0', readSymbols: ['1', '1', '_'], nextState: 'q_sub_0', writeSymbols: ['1', '1', '0'], moveDirections: ['L', 'L', 'L'] },
+      { currentState: 'q_sub_0', readSymbols: ['0', '1', '_'], nextState: 'q_sub_1', writeSymbols: ['0', '1', '1'], moveDirections: ['L', 'L', 'L'] },
+      
+      { currentState: 'q_sub_0', readSymbols: ['0', '_', '_'], nextState: 'q_sub_0', writeSymbols: ['0', '_', '0'], moveDirections: ['L', 'N', 'L'] },
+      { currentState: 'q_sub_0', readSymbols: ['1', '_', '_'], nextState: 'q_sub_0', writeSymbols: ['1', '_', '1'], moveDirections: ['L', 'N', 'L'] },
+      
+      // SUBTRACTION: Borrow 1
+      { currentState: 'q_sub_1', readSymbols: ['0', '0', '_'], nextState: 'q_sub_1', writeSymbols: ['0', '0', '1'], moveDirections: ['L', 'L', 'L'] },
+      { currentState: 'q_sub_1', readSymbols: ['1', '0', '_'], nextState: 'q_sub_0', writeSymbols: ['1', '0', '0'], moveDirections: ['L', 'L', 'L'] },
+      { currentState: 'q_sub_1', readSymbols: ['1', '1', '_'], nextState: 'q_sub_1', writeSymbols: ['1', '1', '1'], moveDirections: ['L', 'L', 'L'] },
+      { currentState: 'q_sub_1', readSymbols: ['0', '1', '_'], nextState: 'q_sub_1', writeSymbols: ['0', '1', '0'], moveDirections: ['L', 'L', 'L'] },
+      
+      { currentState: 'q_sub_1', readSymbols: ['0', '_', '_'], nextState: 'q_sub_1', writeSymbols: ['0', '_', '1'], moveDirections: ['L', 'N', 'L'] },
+      { currentState: 'q_sub_1', readSymbols: ['1', '_', '_'], nextState: 'q_sub_0', writeSymbols: ['1', '_', '0'], moveDirections: ['L', 'N', 'L'] },
+      
+      // Finish
+      { currentState: 'q_sub_0', readSymbols: ['_', '_', '_'], nextState: 'qaccept', writeSymbols: ['_', '_', '_'], moveDirections: ['N', 'N', 'N'] },
+      { currentState: 'q_sub_1', readSymbols: ['_', '_', '_'], nextState: 'qreject', writeSymbols: ['_', '_', '_'], moveDirections: ['N', 'N', 'N'] }, // Hit negative results!
+    ],
+    testCases: [
+      { inputs: ['110', '11'], shouldAccept: true, description: '110 - 11 = 011' }
     ],
   }
 ];
-
-interface LanguageTesterProps {
-  onLoadPreset: (preset: LanguagePreset) => void;
-}
-
-export function LanguageTester({ onLoadPreset }: LanguageTesterProps) {
-  const [customPattern, setCustomPattern] = useState('');
-
-  const handleGenerateCustom = () => {
-    if (!customPattern) return;
-    
-    try {
-      const generated = compileSimplePatternToTM(customPattern);
-      
-      const customPreset: LanguagePreset = {
-        id: `custom-${Date.now()}`,
-        name: `Custom Pattern`,
-        notation: `Matches: ${customPattern}`,
-        description: 'Auto-generated Turing Machine from your pattern input.',
-        grammarType: 'Regular',
-        numTapes: generated.numTapes,
-        alphabet: generated.alphabet,
-        states: generated.states,
-        initialState: generated.states[0],
-        acceptStates: ['qaccept'],
-        rejectStates: ['qreject'],
-        transitions: generated.transitions,
-        testCases: [
-          { input: generated.testInput[0], shouldAccept: true, description: 'Auto-generated valid test string' }
-        ]
-      };
-      
-      onLoadPreset(customPreset);
-      setCustomPattern('');
-    } catch (e) {
-      console.error(e);
-      alert("Invalid pattern. Try a simple sequence like 'a*b' or '10*1'.");
-    }
-  };
-
-  return (
-    <div style={glass} className="p-4 h-full overflow-y-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <FlaskConical className="h-4 w-4 text-violet-400" />
-          <span className="text-[10px] font-semibold uppercase tracking-widest text-white/30">
-            Language Testing
-          </span>
-        </div>
-      </div>
-
-      {/* Custom Generator Input Area */}
-      <div className="mb-4 p-3 rounded-xl bg-white/5 border border-white/10 space-y-2">
-        <div className="text-[10px] font-semibold text-white/60 uppercase tracking-wider mb-1">
-          Custom Pattern Generator
-        </div>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={customPattern}
-            onChange={(e) => setCustomPattern(e.target.value)}
-            placeholder="e.g. a*b*c or 01*0"
-            className="flex-1 bg-black/40 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white placeholder:text-white/20 focus:outline-none focus:border-violet-500/50"
-          />
-          <button
-            onClick={handleGenerateCustom}
-            disabled={!customPattern}
-            className="px-3 py-1.5 rounded-lg text-[10px] font-bold text-violet-300 bg-violet-500/20 border border-violet-500/30 hover:bg-violet-500/30 transition-all disabled:opacity-50 flex items-center gap-1.5"
-          >
-            <Wand2 className="h-3 w-3" />
-            Generate
-          </button>
-        </div>
-      </div>
-
-      {/* Info */}
-      <div className="mb-4 p-3 rounded-lg border border-cyan-500/20" style={{ background: 'rgba(34,211,238,0.05)' }}>
-        <div className="flex items-start gap-2">
-          <Info className="h-3.5 w-3.5 text-cyan-400 shrink-0 mt-0.5" />
-          <div>
-            <p className="text-[10px] text-cyan-400/90 leading-relaxed mb-1">
-              <span className="font-bold">Formal Language Classification:</span>
-            </p>
-            <ul className="text-[9px] text-cyan-400/70 space-y-0.5 ml-2">
-              <li>• <span className="text-emerald-400">Regular:</span> Can be recognized by finite automata (DFA/NFA)</li>
-              <li>• <span className="text-yellow-400">CFG:</span> Context-Free Grammar, requires stack (PDA)</li>
-              <li>• <span className="text-rose-400">CSG:</span> Context-Sensitive, requires Turing Machine</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-
-      {/* Language Presets */}
-      <div className="space-y-3">
-        {languagePresets.map((preset) => (
-          <motion.div
-            key={preset.id}
-            whileHover={{ scale: 1.01 }}
-            className="p-4 rounded-xl cursor-pointer transition-all"
-            style={{
-              background: 'linear-gradient(145deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)',
-              border: '1px solid rgba(255,255,255,0.08)',
-            }}
-            onClick={() => onLoadPreset(preset)}
-          >
-            {/* Preset Header */}
-            <div className="flex items-start justify-between mb-2">
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <BookOpen className="h-3.5 w-3.5 text-violet-400" />
-                  <h3 className="text-sm font-bold text-white">{preset.name}</h3>
-                  <span
-                    className="px-2 py-0.5 rounded text-[9px] font-bold"
-                    style={{
-                      background:
-                        preset.grammarType === 'Regular'
-                          ? 'rgba(16,185,129,0.15)'
-                          : preset.grammarType === 'CFG'
-                          ? 'rgba(234,179,8,0.15)'
-                          : 'rgba(244,63,94,0.15)',
-                      color:
-                        preset.grammarType === 'Regular'
-                          ? '#10b981'
-                          : preset.grammarType === 'CFG'
-                          ? '#eab308'
-                          : '#f43f5e',
-                    }}
-                  >
-                    {preset.grammarType}
-                  </span>
-                </div>
-                <p className="text-[10px] text-white/50 font-mono">{preset.notation}</p>
-              </div>
-              <div className="text-[9px] text-white/40 font-semibold">
-                {preset.numTapes} Tape{preset.numTapes > 1 ? 's' : ''}
-              </div>
-            </div>
-
-            {/* Description */}
-            <p className="text-[10px] text-white/60 mb-3">{preset.description}</p>
-
-            {/* Test Cases Preview */}
-            <div className="space-y-1.5">
-              <div className="text-[9px] text-white/40 uppercase tracking-wider mb-1">Test Cases:</div>
-              {preset.testCases.slice(0, 3).map((testCase, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-center gap-2 text-[10px] p-1.5 rounded"
-                  style={{ background: 'rgba(255,255,255,0.02)' }}
-                >
-                  {testCase.shouldAccept ? (
-                    <CheckCircle2 className="h-3 w-3 text-emerald-400 shrink-0" />
-                  ) : (
-                    <XCircle className="h-3 w-3 text-rose-400 shrink-0" />
-                  )}
-                  <code className="font-mono text-violet-300">{testCase.input}</code>
-                  <span className="text-white/40 text-[9px]">— {testCase.description}</span>
-                </div>
-              ))}
-            </div>
-
-            {/* Load Button */}
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className="w-full mt-3 px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all"
-              style={{
-                background: 'linear-gradient(135deg, rgba(139,92,246,0.2) 0%, rgba(34,211,238,0.2) 100%)',
-                border: '1px solid rgba(139,92,246,0.4)',
-                color: '#c4b5fd',
-              }}
-            >
-              Load Configuration
-            </motion.button>
-          </motion.div>
-        ))}
-      </div>
-    </div>
-  );
-}

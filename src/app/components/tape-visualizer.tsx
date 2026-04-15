@@ -220,7 +220,7 @@ export function TapeVisualizer({
                           textShadow: isHead ? '0 0 8px rgba(34,211,238,0.5)' : isChanged ? '0 0 8px rgba(244,63,94,0.5)' : 'none'
                         }}
                       >
-                        {isEmpty ? '∅' : cell.symbol}
+                        {cell.symbol}
                       </motion.span>
                     </AnimatePresence>
 

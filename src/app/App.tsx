@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Play, Pause, SkipBack, RotateCcw, FastForward, Hexagon, Code, BarChart3, GitBranch, Layers, Grid3x3, Settings2, FlaskConical, ChevronRight } from 'lucide-react';
+import { Play, Pause, SkipBack, RotateCcw, FastForward, Hexagon, Code, BarChart3, GitBranch, Layers, Grid3x3, Settings2, FlaskConical, ChevronRight, X } from 'lucide-react';
 import { TuringMachine } from './utils/turing-machine';
 import { TuringMachineConfig, Transition } from './types/turing-machine';
 import { TapeVisualizer } from './components/tape-visualizer';
@@ -11,7 +11,9 @@ import { StateDiagram } from './components/state-diagram';
 import { PerformanceComparison } from './components/performance-comparison';
 import { TransitionEditor } from './components/transition-editor';
 import { TransitionIndicator } from './components/transition-indicator';
-import { LanguageTester } from './components/language-tester';
+import { LanguageTester, languagePresets } from './components/language-tester';
+import { TagInput } from './components/tag-input';
+import { OnboardingTour } from './components/onboarding-tour';
 
 interface TMConfiguration {
   numTapes: number;
@@ -37,40 +39,35 @@ const glass: React.CSSProperties = {
 
 const speedToDelay = (speed: number) => Math.round(200 / speed);
 
-type ViewMode = 'transitions' | 'diagram' | 'performance' | 'languages';
+type ViewMode = 'tour-transitions' | 'diagram' | 'performance' | 'languages';
 
 function App() {
   const [tmConfig, setTmConfig] = useState<TMConfiguration>({
-    numTapes: 2,
+    numTapes: 1,
     mode: 'multi-tape',
-    startPositions: [0, 0],
-    alphabet: ['0', '1', 'a', 'b'],
+    startPositions: [0],
+    alphabet: ['0', '1'],
     blankSymbol: '_',
-    states: ['q0', 'q1', 'qaccept', 'qreject'],
+    states: ['q0', 'qaccept', 'qreject'],
     initialState: 'q0',
     acceptStates: ['qaccept'],
     rejectStates: ['qreject'],
   });
 
-  const [transitions, setTransitions] = useState<Transition[]>([
-    { currentState: 'q0', readSymbols: ['a', '_'], nextState: 'q0', writeSymbols: ['a', 'a'], moveDirections: ['R', 'R'] },
-    { currentState: 'q0', readSymbols: ['b', '_'], nextState: 'q0', writeSymbols: ['b', 'b'], moveDirections: ['R', 'R'] },
-    { currentState: 'q0', readSymbols: ['_', '_'], nextState: 'qaccept', writeSymbols: ['_', '_'], moveDirections: ['N', 'N'] },
-  ]);
+  const [transitions, setTransitions] = useState<Transition[]>([]);
 
-  const [tapeInputs, setTapeInputs] = useState<string[]>(['abba', '']);
+  const [tapeInputs, setTapeInputs] = useState<string[]>(['']);
   const [isRunning, setIsRunning] = useState(false);
   const [speed, setSpeed] = useState(0.5);
-  const [alphabetInput, setAlphabetInput] = useState(tmConfig.alphabet.join(', '));
-  const [statesInput, setStatesInput] = useState(tmConfig.states.join(', '));
-  const [acceptInput, setAcceptInput] = useState(tmConfig.acceptStates.join(', '));
-  const [rejectInput, setRejectInput] = useState(tmConfig.rejectStates.join(', '));
   const [showConfig, setShowConfig] = useState(true);
+  const [selectedProblem, setSelectedProblem] = useState<string>('custom');
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const tourActiveRef = useRef(false);
 
   const [machine, setMachine] = useState<TuringMachine>(() => {
     const config: TuringMachineConfig = {
       numTapes: tmConfig.numTapes,
+      mode: tmConfig.mode,
       states: tmConfig.states,
       alphabet: tmConfig.alphabet,
       tapeAlphabet: [...tmConfig.alphabet, tmConfig.blankSymbol],
@@ -88,6 +85,7 @@ function App() {
   useEffect(() => {
     const config: TuringMachineConfig = {
       numTapes: tmConfig.numTapes,
+      mode: tmConfig.mode,
       states: tmConfig.states,
       alphabet: tmConfig.alphabet,
       tapeAlphabet: [...tmConfig.alphabet, tmConfig.blankSymbol],
@@ -121,10 +119,9 @@ function App() {
   };
 
   const handleLoadPreset = (preset: any) => {
-    // Update configuration
     setTmConfig({
       numTapes: preset.numTapes,
-      mode: 'multi-tape',
+      mode: preset.mode,
       startPositions: Array(preset.numTapes).fill(0),
       alphabet: preset.alphabet,
       blankSymbol: '_',
@@ -133,24 +130,48 @@ function App() {
       acceptStates: preset.acceptStates,
       rejectStates: preset.rejectStates,
     });
-
-    // Update transitions
     setTransitions(preset.transitions);
-
-    // Set first test case as input
-    const firstTestInput = preset.testCases[0]?.input || '';
+    const testCase = preset.testCases[0];
     const newTapeInputs = Array(preset.numTapes).fill('');
-    newTapeInputs[0] = firstTestInput;
+    if (testCase?.inputs) {
+      testCase.inputs.forEach((val: string, i: number) => {
+        if (i < preset.numTapes) newTapeInputs[i] = val;
+      });
+    } else if (testCase?.input) {
+      newTapeInputs[0] = testCase.input;
+    }
     setTapeInputs(newTapeInputs);
+  };
 
-    // Sync alphabet and state local strings
-    setAlphabetInput(preset.alphabet.join(', '));
-    setStatesInput(preset.states.join(', '));
-    setAcceptInput(preset.acceptStates.join(', '));
-    setRejectInput(preset.rejectStates.join(', '));
+  const handleCustomReset = () => {
+    setSelectedProblem('custom');
+    setTmConfig({
+      numTapes: 1,
+      mode: 'multi-tape',
+      startPositions: [0],
+      alphabet: ['0', '1'],
+      blankSymbol: '_',
+      states: ['q0', 'qaccept', 'qreject'],
+      initialState: 'q0',
+      acceptStates: ['qaccept'],
+      rejectStates: ['qreject'],
+    });
+    setTransitions([]);
+    setTapeInputs(['']);
+  };
 
-    // Scroll to examples or somewhere (optional, we leave it in view)
-    document.getElementById('languages')?.scrollIntoView({ behavior: 'smooth' });
+  const handleSelectProblem = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const id = e.target.value;
+    if (id === 'custom') {
+      handleCustomReset();
+    } else {
+      const preset = languagePresets.find(p => p.id === id);
+      if (preset) {
+        setSelectedProblem(id);
+        handleLoadPreset(preset);
+      }
+    }
+    setShowConfig(true);
   };
 
   useEffect(() => {
@@ -208,10 +229,9 @@ function App() {
   };
 
   const sectionItems = [
-    { id: 'transitions' as ViewMode, icon: Code, label: 'Transition Graph' },
+    { id: 'tour-transitions' as ViewMode, icon: Code, label: 'Transition Graph' },
     { id: 'diagram' as ViewMode, icon: GitBranch, label: 'State Diagram' },
     { id: 'performance' as ViewMode, icon: BarChart3, label: 'Performance' },
-    { id: 'languages' as ViewMode, icon: FlaskConical, label: 'Examples' },
   ];
 
   return (
@@ -238,11 +258,6 @@ function App() {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <button onClick={() => setShowConfig(!showConfig)} className="px-5 py-2.5 rounded-lg text-base font-semibold transition-all hover:scale-105"
-            style={{ background: showConfig ? 'rgba(139,92,246,0.2)' : 'rgba(255,255,255,0.05)', border: '1px solid rgba(139,92,246,0.4)', color: showConfig ? '#c4b5fd' : 'rgba(255,255,255,0.5)' }}>
-            <Settings2 className="h-5 w-5 inline mr-1.5" />
-            Config
-          </button>
           <div className="flex items-center gap-2 rounded-full border border-white/[0.04] bg-white/[0.02] px-5 py-2.5">
             <div className="h-2.5 w-2.5 rounded-full bg-rose-500" style={{ opacity: isRunning ? 1 : 0.2 }} />
             <span className="text-sm font-semibold text-zinc-300 uppercase">{isRunning ? 'Running' : 'Idle'}</span>
@@ -256,22 +271,60 @@ function App() {
         {/* Content */}
         <div className="flex-1 flex flex-col min-h-0">
           {/* Config Panel */}
-          <AnimatePresence>
-            {showConfig && (
-              <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="shrink-0 overflow-hidden">
-                <div className="p-4 border-b" style={{ borderColor: 'rgba(255,255,255,0.04)', background: 'rgba(2,1,8,0.3)' }}>
-                  <div className="grid grid-cols-4 gap-3">
+          <div id="tour-config" className="shrink-0 overflow-hidden">
+            <div className="p-4 border-b relative" style={{ borderColor: 'rgba(255,255,255,0.04)', background: 'rgba(2,1,8,0.3)' }}>
+                  
+              {/* Persistent Header: Problem & Toggle */}
+              <div className="flex items-center gap-6" style={{ borderBottom: showConfig ? '1px solid rgba(255,255,255,0.05)' : 'none', paddingBottom: showConfig ? '16px' : '0', marginBottom: showConfig ? '16px' : '0', transition: 'all 0.3s' }}>
+                <div className="flex items-center gap-4">
+                  <label className="text-sm font-semibold uppercase tracking-wider text-white/40 whitespace-nowrap">Problem:</label>
+                  <select 
+                    value={selectedProblem} 
+                    onChange={handleSelectProblem}
+                    disabled={isRunning}
+                    className="bg-zinc-900 border border-white/20 rounded-lg px-4 py-2 text-sm font-semibold text-zinc-100 outline-none focus:border-white/50 min-w-[300px] transition-all hover:bg-zinc-800 cursor-pointer"
+                  >
+                    <option value="custom" className="bg-zinc-900 text-white">Custom (Empty Reset)</option>
+                    {languagePresets.map(p => (
+                      <option key={p.id} value={p.id} className="bg-zinc-900 text-white">[{p.mode.toUpperCase()}] {p.name} — {p.notation}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <button onClick={() => {
+                  if (selectedProblem !== 'custom' && showConfig) return; // Keep open for presets
+                  setShowConfig(!showConfig);
+                }} className={`flex items-center gap-2 p-2 rounded-lg transition-all hover:bg-white/10 text-white/50 hover:text-white group ${selectedProblem !== 'custom' && showConfig ? 'opacity-30 cursor-not-allowed' : ''}`}>
+                  {showConfig ? (
+                    <><span className="text-xs font-bold uppercase tracking-wider">Collapse</span> <X className="h-5 w-5 group-hover:scale-110 transition-transform text-rose-400" /></>
+                  ) : (
+                    <><span className="text-xs font-bold uppercase tracking-wider">More Options</span> <Settings2 className="h-5 w-5 group-hover:scale-110 transition-transform" /></>
+                  )}
+                </button>
+              </div>
+
+              <AnimatePresence>
+                {showConfig && (
+                  <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                    <div className="grid grid-cols-4 gap-3">
                     {/* Mode */}
                     <div className="space-y-1.5">
                       <label className="text-sm font-semibold uppercase tracking-wider text-white/40">Mode</label>
                       <div className="flex gap-1">
-                        <button onClick={() => !isRunning && setTmConfig({ ...tmConfig, mode: 'multi-tape' })} disabled={isRunning}
-                          className="flex-1 px-4 py-2.5 text-sm font-semibold rounded transition-all hover:scale-105 disabled:opacity-50"
+                        <button onClick={() => {
+                          if (isRunning) return;
+                          setTmConfig({ ...tmConfig, mode: 'multi-tape' });
+                        }} disabled={isRunning}
+                          className="flex-1 px-4 text-sm font-semibold rounded transition-all hover:scale-105 disabled:opacity-50 min-h-[42px]"
                           style={{ background: tmConfig.mode === 'multi-tape' ? 'rgba(34,211,238,0.2)' : 'rgba(255,255,255,0.05)', color: tmConfig.mode === 'multi-tape' ? '#67e8f9' : 'rgba(255,255,255,0.5)' }}>
                           Multi-Tape
                         </button>
-                        <button onClick={() => !isRunning && setTmConfig({ ...tmConfig, mode: 'multi-head' })} disabled={isRunning}
-                          className="flex-1 px-4 py-2.5 text-sm font-semibold rounded transition-all hover:scale-105 disabled:opacity-50"
+                        <button onClick={() => {
+                          if (isRunning) return;
+                          setTmConfig({ ...tmConfig, mode: 'multi-head' });
+                          setTapeInputs(Array(tmConfig.numTapes).fill('')); // Hard reset for UI consistency
+                        }} disabled={isRunning}
+                          className="flex-1 px-4 text-sm font-semibold rounded transition-all hover:scale-105 disabled:opacity-50 min-h-[42px]"
                           style={{ background: tmConfig.mode === 'multi-head' ? 'rgba(139,92,246,0.2)' : 'rgba(255,255,255,0.05)', color: tmConfig.mode === 'multi-head' ? '#c4b5fd' : 'rgba(255,255,255,0.5)' }}>
                           Multi-Head
                         </button>
@@ -282,32 +335,34 @@ function App() {
                     <div className="space-y-1.5">
                       <label className="text-sm font-semibold uppercase tracking-wider text-white/40">Count</label>
                       <div className="flex gap-1">
-                        <button onClick={() => !isRunning && tmConfig.numTapes > 1 && setTmConfig({ ...tmConfig, numTapes: tmConfig.numTapes - 1, startPositions: tmConfig.startPositions.slice(0, -1) })} disabled={isRunning || tmConfig.numTapes <= 1}
-                          className="w-10 h-10 flex items-center justify-center rounded font-bold transition-all hover:scale-110 disabled:opacity-30 text-base"
+                        <button onClick={() => {
+                          if (isRunning || tmConfig.numTapes <= 1) return;
+                          setTmConfig({ ...tmConfig, numTapes: tmConfig.numTapes - 1, startPositions: tmConfig.startPositions.slice(0, -1) });
+                          setTapeInputs(tapeInputs.slice(0, -1));
+                        }} disabled={isRunning || tmConfig.numTapes <= 1}
+                          className="w-[42px] flex items-center justify-center rounded font-bold transition-all hover:scale-110 disabled:opacity-30 text-base min-h-[42px]"
                           style={{ background: 'rgba(244,63,94,0.18)', color: '#fb7185' }}>−</button>
-                        <div className="flex-1 flex items-center justify-center h-10 rounded font-bold text-base" style={{ background: 'rgba(34,211,238,0.1)', color: '#67e8f9', fontFamily: "'JetBrains Mono', monospace" }}>{tmConfig.numTapes}</div>
-                        <button onClick={() => !isRunning && tmConfig.numTapes < 10 && setTmConfig({ ...tmConfig, numTapes: tmConfig.numTapes + 1, startPositions: [...tmConfig.startPositions, 0] })} disabled={isRunning || tmConfig.numTapes >= 10}
-                          className="w-10 h-10 flex items-center justify-center rounded font-bold transition-all hover:scale-110 disabled:opacity-30 text-base"
+                        <div className="flex-1 flex items-center justify-center rounded font-bold text-base min-h-[42px]" style={{ background: 'rgba(34,211,238,0.1)', color: '#67e8f9', fontFamily: "'JetBrains Mono', monospace" }}>{tmConfig.numTapes}</div>
+                        <button onClick={() => {
+                          if (isRunning || tmConfig.numTapes >= 10) return;
+                          setTmConfig({ ...tmConfig, numTapes: tmConfig.numTapes + 1, startPositions: [...tmConfig.startPositions, 0] });
+                        }} disabled={isRunning || tmConfig.numTapes >= 10}
+                          className="w-[42px] flex items-center justify-center rounded font-bold transition-all hover:scale-110 disabled:opacity-30 text-base min-h-[42px]"
                           style={{ background: 'rgba(34,211,238,0.18)', color: '#67e8f9' }}>+</button>
                       </div>
                     </div>
 
                     {/* Alphabet */}
                     <div className="space-y-1.5">
-                      <label className="text-sm font-semibold uppercase tracking-wider text-white/40">Alphabet (comma/space sep)</label>
-                      <input type="text" value={alphabetInput} onChange={(e) => {
-                        if (isRunning) return;
-                        setAlphabetInput(e.target.value);
-                        setTmConfig({ ...tmConfig, alphabet: e.target.value.split(/[\s,]+/).filter(Boolean) });
-                      }} disabled={isRunning}
-                        className="w-full px-4 py-2.5 text-base rounded outline-none" style={{ fontFamily: "'JetBrains Mono', monospace", background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: '#a1a1aa' }} />
+                      <label className="text-sm font-semibold uppercase tracking-wider text-white/40">Alphabet</label>
+                      <TagInput tags={tmConfig.alphabet} onChange={(tags) => setTmConfig({ ...tmConfig, alphabet: tags })} disabled={isRunning} />
                     </div>
 
                     {/* Blank Symbol */}
                     <div className="space-y-1.5">
                       <label className="text-sm font-semibold uppercase tracking-wider text-white/40">Blank Symbol</label>
                       <input type="text" value={tmConfig.blankSymbol} onChange={(e) => !isRunning && e.target.value.length <= 1 && setTmConfig({ ...tmConfig, blankSymbol: e.target.value || '_' })} disabled={isRunning} maxLength={1}
-                        className="w-full px-4 py-2.5 text-base rounded outline-none text-center" style={{ fontFamily: "'JetBrains Mono', monospace", background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: '#a1a1aa' }} />
+                        className="w-full px-4 text-base rounded outline-none text-center min-h-[42px]" style={{ fontFamily: "'JetBrains Mono', monospace", background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: '#a1a1aa' }} />
                     </div>
                   </div>
 
@@ -315,12 +370,7 @@ function App() {
                     {/* All States */}
                     <div className="space-y-1.5">
                       <label className="text-sm font-semibold uppercase tracking-wider text-white/40">All States</label>
-                      <input type="text" value={statesInput} onChange={(e) => {
-                        if (isRunning) return;
-                        setStatesInput(e.target.value);
-                        setTmConfig({ ...tmConfig, states: e.target.value.split(/[\s,]+/).filter(Boolean) });
-                      }} disabled={isRunning} placeholder="q0, q1, ..."
-                        className="w-full px-4 py-2.5 text-base rounded outline-none" style={{ fontFamily: "'JetBrains Mono', monospace", background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: '#a1a1aa' }} />
+                      <TagInput tags={tmConfig.states} onChange={(tags) => setTmConfig({ ...tmConfig, states: tags })} disabled={isRunning} />
                     </div>
 
                     {/* Initial State */}
@@ -330,29 +380,19 @@ function App() {
                         if (isRunning) return;
                         setTmConfig({ ...tmConfig, initialState: e.target.value.trim() });
                       }} disabled={isRunning}
-                        className="w-full px-4 py-2.5 text-base rounded outline-none" style={{ fontFamily: "'JetBrains Mono', monospace", background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: '#a1a1aa' }} />
+                        className="w-full px-4 text-base rounded outline-none min-h-[42px]" style={{ fontFamily: "'JetBrains Mono', monospace", background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: '#a1a1aa' }} />
                     </div>
 
                     {/* Accept States */}
                     <div className="space-y-1.5">
                       <label className="text-sm font-semibold uppercase tracking-wider text-white/40">Accept States</label>
-                      <input type="text" value={acceptInput} onChange={(e) => {
-                        if (isRunning) return;
-                        setAcceptInput(e.target.value);
-                        setTmConfig({ ...tmConfig, acceptStates: e.target.value.split(/[\s,]+/).filter(Boolean) });
-                      }} disabled={isRunning}
-                        className="w-full px-4 py-2.5 text-base rounded outline-none" style={{ fontFamily: "'JetBrains Mono', monospace", background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: '#a1a1aa' }} />
+                      <TagInput tags={tmConfig.acceptStates} onChange={(tags) => setTmConfig({ ...tmConfig, acceptStates: tags })} disabled={isRunning} />
                     </div>
 
                     {/* Reject States */}
                     <div className="space-y-1.5">
                       <label className="text-sm font-semibold uppercase tracking-wider text-white/40">Reject States</label>
-                      <input type="text" value={rejectInput} onChange={(e) => {
-                        if (isRunning) return;
-                        setRejectInput(e.target.value);
-                        setTmConfig({ ...tmConfig, rejectStates: e.target.value.split(/[\s,]+/).filter(Boolean) });
-                      }} disabled={isRunning}
-                        className="w-full px-4 py-2.5 text-base rounded outline-none" style={{ fontFamily: "'JetBrains Mono', monospace", background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: '#a1a1aa' }} />
+                      <TagInput tags={tmConfig.rejectStates} onChange={(tags) => setTmConfig({ ...tmConfig, rejectStates: tags })} disabled={isRunning} />
                     </div>
                   </div>
 
@@ -367,19 +407,29 @@ function App() {
                             const newPos = [...tmConfig.startPositions];
                             newPos[idx] = parseInt(e.target.value) || 0;
                             setTmConfig({ ...tmConfig, startPositions: newPos });
-                          }} disabled={isRunning} className="w-20 px-4 py-2 text-base rounded outline-none text-center"
+                          }} disabled={isRunning} className="w-20 px-4 text-base rounded outline-none text-center min-h-[42px]"
                             style={{ fontFamily: "'JetBrains Mono', monospace", background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: '#a1a1aa' }} />
                         </div>
                       ))}
                     </div>
                   </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
 
           {/* Main Area */}
-          <div className="flex-1 min-h-0 px-4 pb-4 pt-4 space-y-3 overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
+          <div 
+            className="flex-1 min-h-0 px-4 pb-4 pt-4 space-y-3 overflow-y-auto"
+            data-main-scroll
+            style={{ scrollbarWidth: 'thin' }}
+            onScroll={(e) => {
+              if (showConfig && e.currentTarget.scrollTop > 50 && !tourActiveRef.current && selectedProblem === 'custom') {
+                setShowConfig(false);
+              }
+            }}
+          >
             {/* Inputs */}
             <div style={glass} className="px-6 py-5">
               <div className="flex items-center gap-3 mb-4">
@@ -387,22 +437,28 @@ function App() {
                 <span className="text-sm font-semibold uppercase tracking-widest text-white/40">Input Strings</span>
               </div>
               <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${Math.min(tmConfig.numTapes, 4)}, 1fr)` }}>
-                {Array.from({ length: tmConfig.numTapes }).map((_, idx) => (
+                {Array.from({ length: tmConfig.numTapes }).map((_, idx) => {
+                  const val = tapeInputs[idx] || '';
+                  const isInvalid = [...val].some(c => !tmConfig.alphabet.includes(c) && c !== tmConfig.blankSymbol);
+                  return (
                   <div key={idx}>
-                    <label className="text-sm text-white/40 mb-1.5 block font-semibold" style={{ fontFamily: "'JetBrains Mono', monospace" }}>{tmConfig.mode === 'multi-tape' ? `Tape ${idx + 1}` : `Head ${idx + 1}`}</label>
-                    <input type="text" value={tapeInputs[idx] || ''} onChange={(e) => {
+                    <label className="text-sm text-white/40 mb-1.5 flex items-center justify-between font-semibold" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                      <span>{tmConfig.mode === 'multi-tape' ? `Tape ${idx + 1}` : `Head ${idx + 1}`}</span>
+                      {isInvalid && <span className="text-rose-400 text-xs">Invalid symbol</span>}
+                    </label>
+                    <input type="text" value={val} onChange={(e) => {
                       const newInputs = [...tapeInputs];
                       newInputs[idx] = e.target.value;
                       setTapeInputs(newInputs);
                     }} disabled={isRunning} placeholder="empty" className="w-full px-4 py-3 text-base rounded-lg outline-none"
-                      style={{ fontFamily: "'JetBrains Mono', monospace", background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: '#a1a1aa' }} />
+                      style={{ fontFamily: "'JetBrains Mono', monospace", background: 'rgba(255,255,255,0.05)', border: isInvalid ? '1px solid rgba(244,63,94,0.6)' : '1px solid rgba(255,255,255,0.08)', color: isInvalid ? '#fb7185' : '#a1a1aa' }} />
                   </div>
-                ))}
+                )})}
               </div>
             </div>
 
             {/* Tapes */}
-            <div style={glass} className="p-6">
+            <div id="tour-tape" style={glass} className="p-6">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <Grid3x3 className="h-5 w-5 text-violet-400" />
@@ -460,7 +516,7 @@ function App() {
 
                 <div className="flex items-center gap-4">
                   <span className="text-sm text-white/60 uppercase font-semibold">Speed</span>
-                  <input type="range" min="0.1" max="2" step="0.1" value={speed} onChange={(e) => setSpeed(parseFloat(e.target.value))} className="w-32" />
+                  <input type="range" min="0.1" max="1" step="0.1" value={speed} onChange={(e) => setSpeed(parseFloat(e.target.value))} className="w-32" />
                   <span className="text-base text-cyan-400 font-semibold w-12">{speed.toFixed(1)}x</span>
                 </div>
               </div>
@@ -492,7 +548,7 @@ function App() {
 
             {/* Static Single Page Flow instead of Tabs */}
             <div className="space-y-6 pb-20">
-                <div id="transitions" className="scroll-mt-6">
+                <div id="tour-transitions" className="scroll-mt-6">
                   <div className="grid grid-cols-2 gap-3">
                     <TransitionEditor transitions={transitions} numTapes={tmConfig.numTapes} states={tmConfig.states} alphabet={[...tmConfig.alphabet]} blankSymbol={tmConfig.blankSymbol} onChange={setTransitions} isRunning={isRunning} />
                     <TransitionTable transitions={transitions} currentState={machineState.currentState} lastTransition={machineState.lastTransition} numTapes={tmConfig.numTapes} blankSymbol={tmConfig.blankSymbol} />
@@ -508,14 +564,20 @@ function App() {
                 <div id="performance" className="scroll-mt-6">
                   <PerformanceComparison numTapes={tmConfig.numTapes} currentSteps={machineState.stepCount} mode={tmConfig.mode} />
                 </div>
-
-                <div id="languages" className="scroll-mt-6">
-                  <LanguageTester onLoadPreset={handleLoadPreset} />
-                </div>
             </div>
           </div>
         </div>
       </div>
+      <OnboardingTour
+        onStepChange={(step) => {
+          tourActiveRef.current = true;
+          if (step === 0) setShowConfig(true);
+        }}
+        onDismiss={() => { 
+          tourActiveRef.current = false;
+          setShowConfig(true);
+        }}
+      />
     </div>
   );
 }

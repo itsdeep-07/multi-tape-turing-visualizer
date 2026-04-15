@@ -131,7 +131,7 @@ export function TransitionIndicator({
               style={{ background: 'rgba(139,92,246,0.12)' }}
             />
 
-            <div className="flex flex-wrap items-center gap-1.5">
+            <div className="flex flex-wrap items-center justify-center gap-1.5">
 
               {/* FIRED label */}
               <div className="mr-1 flex items-center gap-1.5 rounded-lg px-2 py-1"

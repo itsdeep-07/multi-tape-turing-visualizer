@@ -82,6 +82,7 @@ export function TransitionEditor({
           </span>
         </div>
         <button
+          id="tour-add-transition"
           onClick={() => setIsAdding(!isAdding)}
           disabled={isRunning}
           className="flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-semibold rounded-lg transition-all duration-300 hover:scale-[1.05]"
@@ -120,7 +121,7 @@ export function TransitionEditor({
                   }}
                 >
                   {states.map((s) => (
-                    <option key={s} value={s}>{s}</option>
+                    <option key={s} value={s} className="bg-zinc-900 text-zinc-300">{s}</option>
                   ))}
                 </select>
                 <ArrowRight className="h-3 w-3 text-cyan-400 flex-shrink-0" />
@@ -136,7 +137,7 @@ export function TransitionEditor({
                   }}
                 >
                   {states.map((s) => (
-                    <option key={s} value={s}>{s}</option>
+                    <option key={s} value={s} className="bg-zinc-900 text-zinc-300">{s}</option>
                   ))}
                 </select>
               </div>
@@ -154,7 +155,7 @@ export function TransitionEditor({
                       read[idx] = e.target.value;
                       setNewTransition({ ...newTransition, readSymbols: read });
                     }}
-                    className="flex-1 px-2 py-1 text-[10px] rounded outline-none"
+                    className="w-[50px] px-1 py-1.5 text-xs text-center rounded outline-none"
                     style={{
                       background: 'rgba(255,255,255,0.08)',
                       border: '1px solid rgba(255,255,255,0.1)',
@@ -163,7 +164,7 @@ export function TransitionEditor({
                     }}
                   >
                     {tapeAlphabet.map((s) => (
-                      <option key={s} value={s}>{s}</option>
+                      <option key={s} value={s} className="bg-zinc-900 text-zinc-300">{s}</option>
                     ))}
                   </select>
                   <ArrowRight className="h-2.5 w-2.5 text-white/20 flex-shrink-0" />
@@ -174,7 +175,7 @@ export function TransitionEditor({
                       write[idx] = e.target.value;
                       setNewTransition({ ...newTransition, writeSymbols: write });
                     }}
-                    className="flex-1 px-2 py-1 text-[10px] rounded outline-none"
+                    className="w-[50px] px-1 py-1.5 text-xs text-center rounded outline-none"
                     style={{
                       background: 'rgba(255,255,255,0.08)',
                       border: '1px solid rgba(255,255,255,0.1)',
@@ -183,7 +184,7 @@ export function TransitionEditor({
                     }}
                   >
                     {tapeAlphabet.map((s) => (
-                      <option key={s} value={s}>{s}</option>
+                      <option key={s} value={s} className="bg-zinc-900 text-zinc-300">{s}</option>
                     ))}
                   </select>
                   <select
@@ -193,7 +194,7 @@ export function TransitionEditor({
                       move[idx] = e.target.value as 'L' | 'R' | 'N';
                       setNewTransition({ ...newTransition, moveDirections: move });
                     }}
-                    className="w-12 px-1 py-1 text-[10px] rounded outline-none"
+                    className="w-[50px] px-1 py-1.5 text-xs text-center rounded outline-none"
                     style={{
                       background: 'rgba(255,255,255,0.08)',
                       border: '1px solid rgba(255,255,255,0.1)',
@@ -201,9 +202,9 @@ export function TransitionEditor({
                       fontFamily: "'JetBrains Mono', monospace",
                     }}
                   >
-                    <option value="L">L</option>
-                    <option value="R">R</option>
-                    <option value="N">N</option>
+                    <option value="L" className="bg-zinc-900 text-zinc-300">L</option>
+                    <option value="R" className="bg-zinc-900 text-zinc-300">R</option>
+                    <option value="N" className="bg-zinc-900 text-zinc-300">N</option>
                   </select>
                 </div>
               ))}
