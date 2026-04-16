@@ -292,20 +292,19 @@ function App() {
                 </div>
                 
                 <button onClick={() => {
-                  if (selectedProblem !== 'custom' && showConfig) return; // Keep open for presets
                   setShowConfig(!showConfig);
-                }} className={`flex items-center gap-2 p-2 rounded-lg transition-all hover:bg-white/10 text-white/50 hover:text-white group ${selectedProblem !== 'custom' && showConfig ? 'opacity-30 cursor-not-allowed' : ''}`}>
+                }} className={`flex items-center gap-2 p-2 rounded-lg transition-all hover:bg-white/10 text-white/50 hover:text-white group`}>
                   {showConfig ? (
                     <><span className="text-xs font-bold uppercase tracking-wider">Collapse</span> <X className="h-5 w-5 group-hover:scale-110 transition-transform text-rose-400" /></>
                   ) : (
-                    <><span className="text-xs font-bold uppercase tracking-wider">More Options</span> <Settings2 className="h-5 w-5 group-hover:scale-110 transition-transform" /></>
+                    <><span className="text-xs font-bold uppercase tracking-wider">Customize</span> <Settings2 className="h-5 w-5 group-hover:scale-110 transition-transform" /></>
                   )}
                 </button>
               </div>
 
               <AnimatePresence>
                 {showConfig && (
-                  <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                  <motion.div initial={false} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
                     <div className="grid grid-cols-4 gap-3">
                     {/* Mode */}
                     <div className="space-y-1.5">
@@ -425,7 +424,7 @@ function App() {
             data-main-scroll
             style={{ scrollbarWidth: 'thin' }}
             onScroll={(e) => {
-              if (showConfig && e.currentTarget.scrollTop > 50 && !tourActiveRef.current && selectedProblem === 'custom') {
+              if (showConfig && e.currentTarget.scrollTop > 50 && !tourActiveRef.current) {
                 setShowConfig(false);
               }
             }}
@@ -574,8 +573,16 @@ function App() {
           if (step === 0) setShowConfig(true);
         }}
         onDismiss={() => { 
-          tourActiveRef.current = false;
           setShowConfig(true);
+          // Ensure we scroll back to the top so the config panel is visible and doesn't auto-collapse
+          const sc = document.querySelector('[data-main-scroll]');
+          if (sc) {
+            sc.scrollTo({ top: 0, behavior: 'smooth' });
+            // Wait for scroll to finish before re-enabling auto-collapse
+            setTimeout(() => { tourActiveRef.current = false; }, 800);
+          } else {
+            tourActiveRef.current = false;
+          }
         }}
       />
     </div>
