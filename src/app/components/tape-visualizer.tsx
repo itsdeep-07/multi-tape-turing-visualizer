@@ -151,7 +151,7 @@ export function TapeVisualizer({
           <motion.div
             className="flex gap-1"
             animate={{ x: xTranslate }}
-            transition={{ type: 'spring', stiffness: 140, damping: 22 }}
+            transition={{ type: 'tween', duration: 0.1, ease: 'linear' }}
           >
             <AnimatePresence mode="popLayout">
               {cells.map((cell) => {
@@ -191,7 +191,7 @@ export function TapeVisualizer({
                     }}
                     animate={{ scale: isHead ? 1.1 : isChanged ? 1.05 : 1, opacity: isEmpty ? 0.4 : 1 }}
                     initial={{ scale: 0.8, opacity: 0 }}
-                    transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                    transition={{ duration: 0.1, ease: 'linear' }}
                   >
                     {/* Hover scanline effect */}
                     <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none overflow-hidden">

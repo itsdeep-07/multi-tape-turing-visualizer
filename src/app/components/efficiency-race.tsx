@@ -243,9 +243,9 @@ export function EfficiencyRace() {
         
         {/* Single Tape */}
         <div className="p-4 rounded-xl border border-white/5 bg-black/20">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="font-bold text-white/80">Single-Tape Implementation</h3>
-            <div className="flex items-center gap-4">
+          <div className="flex flex-wrap justify-between items-center mb-4 gap-2">
+            <h3 className="font-bold text-white/80 shrink-0">Single-Tape Implementation</h3>
+            <div className="flex items-center gap-4 shrink-0">
                <div className="flex flex-col items-end">
                  <span className="text-[10px] text-white/30 uppercase font-bold tracking-widest">Total Steps</span>
                  <div className="text-xl font-bold font-mono text-rose-400 bg-rose-500/10 px-3 py-0.5 rounded-md border border-rose-500/20 shadow-[0_0_15px_rgba(244,63,94,0.15)]">{stState?.stepCount || 0}</div>
@@ -259,9 +259,9 @@ export function EfficiencyRace() {
 
         {/* Multi Tape */}
         <div className="p-4 rounded-xl border border-white/5 bg-black/20">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="font-bold text-white/80">Multi-Tape Implementation <span className="text-cyan-400 text-xs ml-1">(2 Tapes)</span></h3>
-            <div className="flex items-center gap-4">
+          <div className="flex flex-wrap justify-between items-center mb-4 gap-2">
+            <h3 className="font-bold text-white/80 shrink-0">Multi-Tape Implementation <span className="text-cyan-400 text-xs ml-1">(2 Tapes)</span></h3>
+            <div className="flex items-center gap-4 shrink-0">
                <div className="flex flex-col items-end">
                  <span className="text-[10px] text-white/30 uppercase font-bold tracking-widest">Total Steps</span>
                  <div className="text-xl font-bold font-mono text-cyan-400 bg-cyan-500/10 px-3 py-0.5 rounded-md border border-cyan-500/20 shadow-[0_0_15px_rgba(34,211,238,0.15)]">{mtState?.stepCount || 0}</div>
@@ -279,9 +279,9 @@ export function EfficiencyRace() {
 
         {/* Multi Head */}
         <div className="p-4 rounded-xl border border-white/5 bg-black/20">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="font-bold text-white/80">Multi-Head Implementation <span className="text-violet-400 text-xs ml-1">(2 Heads)</span></h3>
-            <div className="flex items-center gap-4">
+          <div className="flex flex-wrap justify-between items-center mb-4 gap-2">
+            <h3 className="font-bold text-white/80 shrink-0">Multi-Head Implementation <span className="text-violet-400 text-xs ml-1">(2 Heads)</span></h3>
+            <div className="flex items-center gap-4 shrink-0">
                <div className="flex flex-col items-end">
                  <span className="text-[10px] text-white/30 uppercase font-bold tracking-widest">Total Steps</span>
                  <div className="text-xl font-bold font-mono text-violet-400 bg-violet-500/10 px-3 py-0.5 rounded-md border border-violet-500/20 shadow-[0_0_15px_rgba(139,92,246,0.15)]">{mhState?.stepCount || 0}</div>

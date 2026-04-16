@@ -106,7 +106,7 @@ export function MultiHeadVisualizer({
           <motion.div
             className="flex gap-1"
             animate={{ x: xTranslate }}
-            transition={{ type: 'spring', stiffness: 140, damping: 22 }}
+            transition={{ type: 'tween', duration: 0.1, ease: 'linear' }}
           >
             <AnimatePresence mode="popLayout">
               {cells.map((cell) => {
