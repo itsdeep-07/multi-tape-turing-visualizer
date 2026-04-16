@@ -27,26 +27,25 @@ interface PerformanceComparisonProps {
   mode: 'multi-tape' | 'multi-head';
 }
 
-export function PerformanceComparison({ numTapes, currentSteps, mode }: PerformanceComparisonProps) {
-  const [maxN, setMaxN] = useState(50);
+export function PerformanceComparison({ currentSteps, mode }: PerformanceComparisonProps) {
+  const [simK, setSimK] = useState(2); // Simulated number of tapes/heads
 
   // Dynamic complexity calculation based on tape count
   const data = useMemo(() => {
     const result: PerformanceData[] = [];
-    const stepSize = Math.max(1, Math.floor(maxN / 10));
     
     for (let i = 1; i <= 10; i++) {
-      const n = i * stepSize;
+      const n = i * 5;
 
       // Single tape: Realistic quadratic behavior
       const singleTape = Math.round(Math.pow(n, 2) * 0.8 + n * 2);
 
       // Multi-Tape: Adding tapes gives more parallelism -> REDUCES step overhead
-      const mtOverhead = 1 + (2.0 / numTapes);
+      const mtOverhead = 1 + (2.0 / simK);
       const multiTape = Math.round(n * mtOverhead * 2);
 
       // Multi-Head: Adding heads on a single tape also reduces overhead, with tighter constants
-      const mhOverhead = 1 + (1.2 / numTapes);
+      const mhOverhead = 1 + (1.2 / simK);
       const multiHead = Math.round(n * mhOverhead * 2);
 
       result.push({
@@ -58,15 +57,15 @@ export function PerformanceComparison({ numTapes, currentSteps, mode }: Performa
       });
     }
     return result;
-  }, [numTapes, maxN]);
+  }, [simK]);
 
   // Calculate theoretical complexity notation
   const getSpeedup = (baseline: number, optimized: number) => {
     return (baseline / optimized).toFixed(1);
   };
   
-  const mtNotation = `O(${(1 + 2.0 / numTapes).toFixed(2)}n)`;
-  const mhNotation = `O(${(1 + 1.2 / numTapes).toFixed(2)}n)`;
+  const mtNotation = `O(${(1 + 2.0 / simK).toFixed(2)}n)`;
+  const mhNotation = `O(${(1 + 1.2 / simK).toFixed(2)}n)`;
 
   const speedupRatio = useMemo(() => {
     // Calculate average speedup from data
@@ -118,7 +117,7 @@ export function PerformanceComparison({ numTapes, currentSteps, mode }: Performa
             className="px-2 py-1 rounded text-[10px] font-bold"
             style={{ background: 'rgba(34,211,238,0.18)', color: '#67e8f9' }}
           >
-            {numTapes} {mode === 'multi-head' ? 'Heads' : 'Tapes'}
+            {simK} {mode === 'multi-head' ? 'Heads' : 'Tapes'}
           </motion.div>
           <div
             className="px-2 py-1 rounded text-[10px] font-bold"
@@ -149,7 +148,7 @@ export function PerformanceComparison({ numTapes, currentSteps, mode }: Performa
           </div>
           <div className="text-xl font-bold text-cyan-400">{mtNotation}</div>
           <div className="text-[10px] text-white/30 mt-1">
-            {numTapes === 1 ? 'Linear' : `~${getSpeedup(data[data.length-1].singleTape, data[data.length-1].multiTape)}x faster`}
+            {simK === 1 ? 'Linear' : `~${getSpeedup(data[data.length-1].singleTape, data[data.length-1].multiTape)}x faster`}
           </div>
         </div>
 
@@ -161,19 +160,20 @@ export function PerformanceComparison({ numTapes, currentSteps, mode }: Performa
           </div>
           <div className="text-xl font-bold text-violet-400">{mhNotation}</div>
           <div className="text-[10px] text-white/30 mt-1">
-            {numTapes === 1 ? 'Linear' : `~${getSpeedup(data[data.length-1].singleTape, data[data.length-1].multiHead)}x faster`}
+            {simK === 1 ? 'Linear' : `~${getSpeedup(data[data.length-1].singleTape, data[data.length-1].multiHead)}x faster`}
           </div>
         </div>
       </div>
 
       {/* Dynamic Graph Controller */}
       <div className="mb-4 flex items-center justify-between p-3 rounded-lg border border-white/5 bg-black/20">
-         <span className="text-xs text-white/60 font-semibold tracking-wide flex gap-2">
-           Max Input Size (n): <span className="text-white">{maxN}</span>
+         <span className="text-xs text-white/60 font-semibold tracking-wide flex gap-2 items-center">
+           Evaluating Number of Tapes/Heads: 
+           <span className="text-white text-base font-mono bg-white/10 px-2 py-0.5 rounded">{simK}</span>
          </span>
          <input 
-           type="range" min="10" max="200" step="10" value={maxN} 
-           onChange={(e) => setMaxN(parseInt(e.target.value))}
+           type="range" min="1" max="10" step="1" value={simK} 
+           onChange={(e) => setSimK(parseInt(e.target.value))}
            className="w-48 cursor-pointer" 
          />
       </div>
