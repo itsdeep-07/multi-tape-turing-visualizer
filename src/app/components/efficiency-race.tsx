@@ -244,15 +244,14 @@ export function EfficiencyRace() {
         {/* Single Tape */}
         <div className="p-4 rounded-xl border border-white/5 bg-black/20">
           <div className="flex flex-wrap justify-between items-center mb-4 gap-2">
-            <h3 className="font-bold text-white/80 shrink-0">Single-Tape Implementation</h3>
-            <div className="flex items-center gap-4 shrink-0">
-               <div className="flex flex-col items-end">
-                 <span className="text-[10px] text-white/30 uppercase font-bold tracking-widest">Total Steps</span>
-                 <div className="text-xl font-bold font-mono text-rose-400 bg-rose-500/10 px-3 py-0.5 rounded-md border border-rose-500/20 shadow-[0_0_15px_rgba(244,63,94,0.15)]">{stState?.stepCount || 0}</div>
-               </div>
-               <div className="h-8 w-px bg-white/10"></div>
-               <div className="w-24 text-right"><StatusBadge stateObj={stState} /></div>
+            <div className="flex items-center gap-6 shrink-0">
+              <h3 className="font-bold text-white/80">Single-Tape Implementation</h3>
+              <div className="flex items-center gap-3">
+                <span className="text-[10px] text-white/30 uppercase font-bold tracking-widest">Total Steps</span>
+                <div className="text-xl font-bold font-mono text-rose-400 bg-rose-500/10 px-3 py-0.5 rounded-md border border-rose-500/20 shadow-[0_0_15px_rgba(244,63,94,0.15)]">{stState?.stepCount || 0}</div>
+              </div>
             </div>
+            <div className="w-24 text-right shrink-0"><StatusBadge stateObj={stState} /></div>
           </div>
           {stState && <TapeVisualizer tape={stState.tapes[0]} tapeIndex={0} blankSymbol="_" isActive={!stState.isHalted} currentState={stState.currentState} />}
         </div>
@@ -260,15 +259,14 @@ export function EfficiencyRace() {
         {/* Multi Tape */}
         <div className="p-4 rounded-xl border border-white/5 bg-black/20">
           <div className="flex flex-wrap justify-between items-center mb-4 gap-2">
-            <h3 className="font-bold text-white/80 shrink-0">Multi-Tape Implementation <span className="text-cyan-400 text-xs ml-1">(2 Tapes)</span></h3>
-            <div className="flex items-center gap-4 shrink-0">
-               <div className="flex flex-col items-end">
-                 <span className="text-[10px] text-white/30 uppercase font-bold tracking-widest">Total Steps</span>
-                 <div className="text-xl font-bold font-mono text-cyan-400 bg-cyan-500/10 px-3 py-0.5 rounded-md border border-cyan-500/20 shadow-[0_0_15px_rgba(34,211,238,0.15)]">{mtState?.stepCount || 0}</div>
-               </div>
-               <div className="h-8 w-px bg-white/10"></div>
-               <div className="w-24 text-right"><StatusBadge stateObj={mtState} /></div>
+            <div className="flex items-center gap-6 shrink-0">
+              <h3 className="font-bold text-white/80">Multi-Tape Implementation <span className="text-cyan-400 text-xs ml-1">(2 Tapes)</span></h3>
+              <div className="flex items-center gap-3">
+                <span className="text-[10px] text-white/30 uppercase font-bold tracking-widest">Total Steps</span>
+                <div className="text-xl font-bold font-mono text-cyan-400 bg-cyan-500/10 px-3 py-0.5 rounded-md border border-cyan-500/20 shadow-[0_0_15px_rgba(34,211,238,0.15)]">{mtState?.stepCount || 0}</div>
+              </div>
             </div>
+            <div className="w-24 text-right shrink-0"><StatusBadge stateObj={mtState} /></div>
           </div>
           {mtState && mtState.tapes.map((t: any, i: number) => (
              <div key={i} className="mb-2 last:mb-0">
@@ -280,15 +278,14 @@ export function EfficiencyRace() {
         {/* Multi Head */}
         <div className="p-4 rounded-xl border border-white/5 bg-black/20">
           <div className="flex flex-wrap justify-between items-center mb-4 gap-2">
-            <h3 className="font-bold text-white/80 shrink-0">Multi-Head Implementation <span className="text-violet-400 text-xs ml-1">(2 Heads)</span></h3>
-            <div className="flex items-center gap-4 shrink-0">
-               <div className="flex flex-col items-end">
-                 <span className="text-[10px] text-white/30 uppercase font-bold tracking-widest">Total Steps</span>
-                 <div className="text-xl font-bold font-mono text-violet-400 bg-violet-500/10 px-3 py-0.5 rounded-md border border-violet-500/20 shadow-[0_0_15px_rgba(139,92,246,0.15)]">{mhState?.stepCount || 0}</div>
-               </div>
-               <div className="h-8 w-px bg-white/10"></div>
-               <div className="w-24 text-right"><StatusBadge stateObj={mhState} /></div>
+            <div className="flex items-center gap-6 shrink-0">
+              <h3 className="font-bold text-white/80">Multi-Head Implementation <span className="text-violet-400 text-xs ml-1">(2 Heads)</span></h3>
+              <div className="flex items-center gap-3">
+                <span className="text-[10px] text-white/30 uppercase font-bold tracking-widest">Total Steps</span>
+                <div className="text-xl font-bold font-mono text-violet-400 bg-violet-500/10 px-3 py-0.5 rounded-md border border-violet-500/20 shadow-[0_0_15px_rgba(139,92,246,0.15)]">{mhState?.stepCount || 0}</div>
+              </div>
             </div>
+            <div className="w-24 text-right shrink-0"><StatusBadge stateObj={mhState} /></div>
           </div>
           {mhState && <MultiHeadVisualizer tape={mhState.tapes[0]} heads={mhState.tapes.map((t: any) => t.headPosition)} blankSymbol="_" isActive={!mhState.isHalted} mode={"multi-head"} currentState={mhState.currentState} />}
         </div>
