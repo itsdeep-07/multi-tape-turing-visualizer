@@ -41,13 +41,13 @@ export function PerformanceComparison({ numTapes, currentSteps, mode }: Performa
       // Single tape: Realistic quadratic behavior
       const singleTape = Math.round(Math.pow(n, 2) * 0.8 + n * 2);
 
-      // Multi-Tape: O(n) + High Coordination Overhead based on tape count
-      const mtOverhead = 1 + (0.15 * numTapes);
-      const multiTape = Math.round(n * mtOverhead * 4);
+      // Multi-Tape: Adding tapes gives more parallelism -> REDUCES step overhead
+      const mtOverhead = 1 + (2.0 / numTapes);
+      const multiTape = Math.round(n * mtOverhead * 2);
 
-      // Multi-Head: O(n) + Low Coordination Overhead
-      const mhOverhead = 1 + (0.05 * numTapes);
-      const multiHead = Math.round(n * mhOverhead * 4);
+      // Multi-Head: Adding heads on a single tape also reduces overhead, with tighter constants
+      const mhOverhead = 1 + (1.2 / numTapes);
+      const multiHead = Math.round(n * mhOverhead * 2);
 
       result.push({
         id: `perf-${n}`,
@@ -65,8 +65,8 @@ export function PerformanceComparison({ numTapes, currentSteps, mode }: Performa
     return (baseline / optimized).toFixed(1);
   };
   
-  const mtNotation = `O(${(1 + 0.15 * numTapes).toFixed(2)}n)`;
-  const mhNotation = `O(${(1 + 0.05 * numTapes).toFixed(2)}n)`;
+  const mtNotation = `O(${(1 + 2.0 / numTapes).toFixed(2)}n)`;
+  const mhNotation = `O(${(1 + 1.2 / numTapes).toFixed(2)}n)`;
 
   const speedupRatio = useMemo(() => {
     // Calculate average speedup from data
@@ -251,9 +251,9 @@ export function PerformanceComparison({ numTapes, currentSteps, mode }: Performa
       {/* Efficiency Note */}
       <div className="mt-4 p-2.5 rounded-lg border border-white/5" style={{ background: 'rgba(255,255,255,0.02)' }}>
         <p className="text-[10px] text-white/50 leading-relaxed text-center">
-          <span className="font-bold text-white/70">Theoretical Constants:</span> While Multi-Tape and Multi-Head are both bounded by <span className="text-emerald-400">O(n)</span>, 
-          Multi-Head operations maintain a tighter algorithmic constant (<span className="font-mono text-violet-400 text-[9px]">{mhNotation}</span>) 
-          avoiding the physical coordination overhead of writing to completely separate tapes (<span className="font-mono text-cyan-400 text-[9px]">{mtNotation}</span>).
+          <span className="font-bold text-white/70">Algorithmic Constants:</span> As you increase the number of Tapes or Heads, the theoretical execution speed <span className="text-emerald-400">improves (drops)</span>. 
+          Multi-Head operations process more efficiently (<span className="font-mono text-violet-400 text-[9px]">{mhNotation}</span>) 
+          by avoiding the physical separation latency of multiple physical tapes (<span className="font-mono text-cyan-400 text-[9px]">{mtNotation}</span>).
         </p>
       </div>
     </div>
