@@ -595,6 +595,7 @@ function App() {
         onStepChange={(step) => {
           tourActiveRef.current = true;
           if (step === 0) setShowConfig(true);
+          else setShowConfig(false);
         }}
         onDismiss={() => { 
           setShowConfig(true);
