@@ -9,6 +9,7 @@ interface TourStep {
   icon: React.ReactNode;
   accentColor: string;
   hint?: string;
+  position?: 'inside-top' | 'bottom';
 }
 
 const TOUR_STEPS: TourStep[] = [
@@ -51,6 +52,7 @@ const TOUR_STEPS: TourStep[] = [
     icon: <BarChart3 className="h-5 w-5" />,
     accentColor: '#f59e0b',
     hint: '💡 Select a problem (like a^n b^n), hit Run Race, and watch the counters spin!',
+    position: 'inside-top',
   },
 ];
 
@@ -148,19 +150,25 @@ export function OnboardingTour({ onStepChange, onDismiss }: OnboardingTourProps)
       };
       setSpotlight(sr);
 
-      // TOOLTIP: always below the highlighted area
       let ttTop = sr.top + sr.height + 10;
       let ttLeft = sr.left + sr.width / 2 - TOOLTIP_W / 2;
 
-      // For tiny elements (like the + button), shift tooltip to the right side
-      if (sr.width < 120) {
+      if (stepDef.position === 'inside-top') {
+        ttTop = sr.top + 40; // Float right inside the top of the border box
+      } else if (sr.width < 120) {
+        // For tiny elements (like the + button), shift tooltip to the right side
         ttLeft = sr.left + sr.width + 12;
         ttTop = sr.top;
       }
 
-      // Clamp so it never goes off screen
+      // Clamp so it never goes off screen horizontally
       ttLeft = Math.max(8, Math.min(ttLeft, window.innerWidth - TOOLTIP_W - 8));
-      ttTop = Math.max(8, Math.min(ttTop, window.innerHeight - 195));
+      
+      // If bottom positioning pushes it off screen, dynamically snap it to inside-top fallback
+      const MAX_TOOLTIP_HEIGHT = 220;
+      if (ttTop + MAX_TOOLTIP_HEIGHT > window.innerHeight) {
+        ttTop = Math.max(8, window.innerHeight - MAX_TOOLTIP_HEIGHT - 8);
+      }
 
       setTooltipPos({ top: ttTop, left: ttLeft });
       setReady(true);
