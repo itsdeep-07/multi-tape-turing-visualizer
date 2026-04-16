@@ -46,11 +46,11 @@ const TOUR_STEPS: TourStep[] = [
   },
   {
     targetId: 'performance',
-    title: 'Performance Comparison',
-    description: 'Dynamic chart comparing multi-tape vs single-tape performance. Updates live with each step.',
+    title: 'Live Race & Performance Graph',
+    description: 'Experience the Live Efficiency Race! Watch Single-Tape battle against Multi-Tape architectures, and see the theoretical Triple-Threat complexity graph update dynamically.',
     icon: <BarChart3 className="h-5 w-5" />,
     accentColor: '#f59e0b',
-    hint: '💡 Run a problem and watch the graph grow in real-time!',
+    hint: '💡 Select a problem (like a^n b^n), hit Run Race, and watch the counters spin!',
   },
 ];
 
