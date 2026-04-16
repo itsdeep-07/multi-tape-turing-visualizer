@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { motion } from 'motion/react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { TrendingUp, Zap } from 'lucide-react';
@@ -28,11 +28,15 @@ interface PerformanceComparisonProps {
 }
 
 export function PerformanceComparison({ numTapes, currentSteps, mode }: PerformanceComparisonProps) {
+  const [maxN, setMaxN] = useState(50);
+
   // Dynamic complexity calculation based on tape count
   const data = useMemo(() => {
     const result: PerformanceData[] = [];
+    const stepSize = Math.max(1, Math.floor(maxN / 10));
+    
     for (let i = 1; i <= 10; i++) {
-      const n = i * 5;
+      const n = i * stepSize;
 
       // Single tape: Realistic quadratic behavior
       const singleTape = Math.round(Math.pow(n, 2) * 0.8 + n * 2);
@@ -46,7 +50,7 @@ export function PerformanceComparison({ numTapes, currentSteps, mode }: Performa
       const multiHead = Math.round(n * mhOverhead * 4);
 
       result.push({
-        id: `perf-${i}`,
+        id: `perf-${n}`,
         inputSize: n,
         singleTape,
         multiTape,
@@ -54,18 +58,15 @@ export function PerformanceComparison({ numTapes, currentSteps, mode }: Performa
       });
     }
     return result;
-  }, [numTapes]);
+  }, [numTapes, maxN]);
 
   // Calculate theoretical complexity notation
-  const getComplexityNotation = () => {
-    if (numTapes === 1) {
-      return 'O(n²)';
-    }
-    const overhead = mode === 'multi-head'
-      ? (1 + 0.1 * numTapes).toFixed(2)
-      : (1 + 0.15 * numTapes).toFixed(2);
-    return `O(${overhead}n)`;
+  const getSpeedup = (baseline: number, optimized: number) => {
+    return (baseline / optimized).toFixed(1);
   };
+  
+  const mtNotation = `O(${(1 + 0.15 * numTapes).toFixed(2)}n)`;
+  const mhNotation = `O(${(1 + 0.05 * numTapes).toFixed(2)}n)`;
 
   const speedupRatio = useMemo(() => {
     // Calculate average speedup from data
@@ -129,7 +130,8 @@ export function PerformanceComparison({ numTapes, currentSteps, mode }: Performa
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 gap-3 mb-4">
+      <div className="grid grid-cols-3 gap-3 mb-4">
+        {/* Single Tape */}
         <div className="p-3 rounded-lg" style={{ background: 'rgba(244,63,94,0.08)' }}>
           <div className="flex items-center gap-1.5 mb-1">
             <div className="h-1.5 w-1.5 rounded-full bg-rose-400" />
@@ -138,16 +140,42 @@ export function PerformanceComparison({ numTapes, currentSteps, mode }: Performa
           <div className="text-xl font-bold text-rose-400">O(n²)</div>
           <div className="text-[10px] text-white/30 mt-1">Quadratic time</div>
         </div>
+        
+        {/* Multi Tape */}
         <div className="p-3 rounded-lg" style={{ background: 'rgba(34,211,238,0.08)' }}>
           <div className="flex items-center gap-1.5 mb-1">
             <div className="h-1.5 w-1.5 rounded-full bg-cyan-400" />
-            <span className="text-[10px] text-white/50 uppercase tracking-wider">{mode === 'multi-head' ? 'Multi-Head' : 'Multi-Tape'}</span>
+            <span className="text-[10px] text-white/50 uppercase tracking-wider">Multi-Tape</span>
           </div>
-          <div className="text-xl font-bold text-cyan-400">{getComplexityNotation()}</div>
+          <div className="text-xl font-bold text-cyan-400">{mtNotation}</div>
           <div className="text-[10px] text-white/30 mt-1">
-            {numTapes === 1 ? 'Quadratic' : `~${speedupRatio}x faster`}
+            {numTapes === 1 ? 'Linear' : `~${getSpeedup(data[data.length-1].singleTape, data[data.length-1].multiTape)}x faster`}
           </div>
         </div>
+
+        {/* Multi Head */}
+        <div className="p-3 rounded-lg" style={{ background: 'rgba(167,139,250,0.08)' }}>
+          <div className="flex items-center gap-1.5 mb-1">
+            <div className="h-1.5 w-1.5 rounded-full bg-violet-400" />
+            <span className="text-[10px] text-white/50 uppercase tracking-wider">Multi-Head</span>
+          </div>
+          <div className="text-xl font-bold text-violet-400">{mhNotation}</div>
+          <div className="text-[10px] text-white/30 mt-1">
+            {numTapes === 1 ? 'Linear' : `~${getSpeedup(data[data.length-1].singleTape, data[data.length-1].multiHead)}x faster`}
+          </div>
+        </div>
+      </div>
+
+      {/* Dynamic Graph Controller */}
+      <div className="mb-4 flex items-center justify-between p-3 rounded-lg border border-white/5 bg-black/20">
+         <span className="text-xs text-white/60 font-semibold tracking-wide flex gap-2">
+           Max Input Size (n): <span className="text-white">{maxN}</span>
+         </span>
+         <input 
+           type="range" min="10" max="200" step="10" value={maxN} 
+           onChange={(e) => setMaxN(parseInt(e.target.value))}
+           className="w-48 cursor-pointer" 
+         />
       </div>
 
       {/* Current Execution Stats */}
@@ -221,13 +249,11 @@ export function PerformanceComparison({ numTapes, currentSteps, mode }: Performa
       </div>
 
       {/* Efficiency Note */}
-      <div className="mt-4 p-2.5 rounded-lg border border-cyan-500/20" style={{ background: 'rgba(34,211,238,0.05)' }}>
-        <p className="text-[10px] text-cyan-400/80 leading-relaxed">
-          <span className="font-bold">Dynamic Complexity:</span> With {numTapes} {mode === 'multi-head' ? 'head(s)' : 'tape(s)'},
-          complexity is {getComplexityNotation()} vs single-tape O(n²). {mode === 'multi-head'
-            ? 'Multi-head machines have lower coordination overhead than multi-tape.'
-            : 'More tapes provide parallelism but add coordination overhead.'}
-          {numTapes > 1 && ` Current configuration achieves ~${speedupRatio}x theoretical speedup.`}
+      <div className="mt-4 p-2.5 rounded-lg border border-white/5" style={{ background: 'rgba(255,255,255,0.02)' }}>
+        <p className="text-[10px] text-white/50 leading-relaxed text-center">
+          <span className="font-bold text-white/70">Theoretical Constants:</span> While Multi-Tape and Multi-Head are both bounded by <span className="text-emerald-400">O(n)</span>, 
+          Multi-Head operations maintain a tighter algorithmic constant (<span className="font-mono text-violet-400 text-[9px]">{mhNotation}</span>) 
+          avoiding the physical coordination overhead of writing to completely separate tapes (<span className="font-mono text-cyan-400 text-[9px]">{mtNotation}</span>).
         </p>
       </div>
     </div>
