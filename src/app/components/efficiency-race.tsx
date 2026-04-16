@@ -16,7 +16,7 @@ const glass = {
   borderRadius: 16,
 };
 
-// --- Single Tape Rules ---
+// --- Single Tape Rules (Palindrome) ---
 const stAlphabet = ['0', '1'];
 const stStates = ['q0', 'q_scan_0', 'q_scan_1', 'q_check_0', 'q_check_1', 'q_return', 'qaccept', 'qreject'];
 const singleTapeTransitions: Transition[] = [
@@ -45,7 +45,36 @@ const singleTapeTransitions: Transition[] = [
   { currentState: 'q_return', readSymbols: ['_'], nextState: 'q0', writeSymbols: ['_'], moveDirections: ['R'] },
 ];
 
+// --- Single Tape Rules (a^n b^n) ---
+const anbnSTTransitions: Transition[] = [
+  { currentState: 'q0', readSymbols: ['a'], nextState: 'q_scan_a', writeSymbols: ['X'], moveDirections: ['R'] },
+  { currentState: 'q0', readSymbols: ['Y'], nextState: 'q_check_done', writeSymbols: ['Y'], moveDirections: ['R'] },
+  { currentState: 'q0', readSymbols: ['_'], nextState: 'qaccept', writeSymbols: ['_'], moveDirections: ['N'] },
+
+  { currentState: 'q_scan_a', readSymbols: ['a'], nextState: 'q_scan_a', writeSymbols: ['a'], moveDirections: ['R'] },
+  { currentState: 'q_scan_a', readSymbols: ['Y'], nextState: 'q_scan_a', writeSymbols: ['Y'], moveDirections: ['R'] },
+  { currentState: 'q_scan_a', readSymbols: ['b'], nextState: 'q_rewind', writeSymbols: ['Y'], moveDirections: ['L'] },
+
+  { currentState: 'q_rewind', readSymbols: ['a'], nextState: 'q_rewind', writeSymbols: ['a'], moveDirections: ['L'] },
+  { currentState: 'q_rewind', readSymbols: ['Y'], nextState: 'q_rewind', writeSymbols: ['Y'], moveDirections: ['L'] },
+  { currentState: 'q_rewind', readSymbols: ['X'], nextState: 'q0', writeSymbols: ['X'], moveDirections: ['R'] },
+
+  { currentState: 'q_check_done', readSymbols: ['Y'], nextState: 'q_check_done', writeSymbols: ['Y'], moveDirections: ['R'] },
+  { currentState: 'q_check_done', readSymbols: ['_'], nextState: 'qaccept', writeSymbols: ['_'], moveDirections: ['N'] },
+];
+
+// --- Multi-Head Rules (a^n b^n) ---
+const anbnMHTransitions: Transition[] = [
+  { currentState: 'q0_setup', readSymbols: ['a', 'a'], nextState: 'q0_setup', writeSymbols: ['a', 'a'], moveDirections: ['N', 'R'] },
+  { currentState: 'q0_setup', readSymbols: ['a', 'b'], nextState: 'q1_compare', writeSymbols: ['a', 'b'], moveDirections: ['N', 'N'] },
+  { currentState: 'q0_setup', readSymbols: ['_', '_'], nextState: 'qaccept', writeSymbols: ['_', '_'], moveDirections: ['N', 'N'] },
+  
+  { currentState: 'q1_compare', readSymbols: ['a', 'b'], nextState: 'q1_compare', writeSymbols: ['a', 'b'], moveDirections: ['R', 'R'] },
+  { currentState: 'q1_compare', readSymbols: ['b', '_'], nextState: 'qaccept', writeSymbols: ['b', '_'], moveDirections: ['N', 'N'] },
+];
+
 export function EfficiencyRace() {
+  const [activeProblem, setActiveProblem] = useState<'palindrome' | 'anbn'>('palindrome');
   const [inputStr, setInputStr] = useState('101101');
   const [isRunning, setIsRunning] = useState(false);
   const [speed, setSpeed] = useState(0.8);
@@ -65,44 +94,73 @@ export function EfficiencyRace() {
     setIsRunning(false);
     if (intervalRef.current) clearInterval(intervalRef.current);
     
-    // --- Single Tape Config ---
-    const stConfig: TuringMachineConfig = {
-      numTapes: 1, mode: 'multi-tape', states: stStates, alphabet: stAlphabet,
-      tapeAlphabet: ['0', '1', '_'], blankSymbol: '_', initialState: 'q0',
-      acceptStates: ['qaccept'], rejectStates: ['qreject'], transitions: singleTapeTransitions, startPositions: [0]
-    };
-    stMachineRef.current = new TuringMachine(stConfig, [inputStr]);
-    setStState(stMachineRef.current.getState());
+    if (activeProblem === 'palindrome') {
+      // --- Single Tape Config ---
+      const stConfig: TuringMachineConfig = {
+        numTapes: 1, mode: 'multi-tape', states: stStates, alphabet: stAlphabet,
+        tapeAlphabet: ['0', '1', '_'], blankSymbol: '_', initialState: 'q0',
+        acceptStates: ['qaccept'], rejectStates: ['qreject'], transitions: singleTapeTransitions, startPositions: [0]
+      };
+      stMachineRef.current = new TuringMachine(stConfig, [inputStr]);
+      setStState(stMachineRef.current.getState());
 
-    // --- Multi Tape Config --- (Adapt preset from a/b to 0/1)
-    const mtPreset = languagePresets.find(p => p.id === 'palindrome')!;
-    const mtTransitions = mtPreset.transitions.map(t => ({
-      ...t,
-      readSymbols: t.readSymbols.map(s => s === 'a' ? '0' : s === 'b' ? '1' : s),
-      writeSymbols: t.writeSymbols.map(s => s === 'a' ? '0' : s === 'b' ? '1' : s),
-    }));
-    const mtConfig: TuringMachineConfig = {
-      numTapes: 2, mode: 'multi-tape', states: mtPreset.states, alphabet: ['0', '1'],
-      tapeAlphabet: ['0', '1', '_'], blankSymbol: '_', initialState: mtPreset.initialState,
-      acceptStates: mtPreset.acceptStates, rejectStates: mtPreset.rejectStates, transitions: mtTransitions, startPositions: [0, 0]
-    };
-    mtMachineRef.current = new TuringMachine(mtConfig, [inputStr, '']);
-    setMtState(mtMachineRef.current.getState());
+      // --- Multi Tape Config ---
+      const mtPreset = languagePresets.find(p => p.id === 'palindrome')!;
+      const mtTransitions = mtPreset.transitions.map(t => ({
+        ...t,
+        readSymbols: t.readSymbols.map(s => s === 'a' ? '0' : s === 'b' ? '1' : s),
+        writeSymbols: t.writeSymbols.map(s => s === 'a' ? '0' : s === 'b' ? '1' : s),
+      }));
+      const mtConfig: TuringMachineConfig = {
+        numTapes: 2, mode: 'multi-tape', states: mtPreset.states, alphabet: ['0', '1'],
+        tapeAlphabet: ['0', '1', '_'], blankSymbol: '_', initialState: mtPreset.initialState,
+        acceptStates: mtPreset.acceptStates, rejectStates: mtPreset.rejectStates, transitions: mtTransitions, startPositions: [0, 0]
+      };
+      mtMachineRef.current = new TuringMachine(mtConfig, [inputStr, '']);
+      setMtState(mtMachineRef.current.getState());
 
-    // --- Multi Head Config ---
-    const mhPreset = languagePresets.find(p => p.id === 'palindrome_multihead')!;
-    const mhConfig: TuringMachineConfig = {
-      numTapes: 2, mode: 'multi-head', states: mhPreset.states, alphabet: ['0', '1'],
-      tapeAlphabet: ['0', '1', '_'], blankSymbol: '_', initialState: mhPreset.initialState,
-      acceptStates: mhPreset.acceptStates, rejectStates: mhPreset.rejectStates, transitions: mhPreset.transitions, startPositions: [0, 0]
-    };
-    mhMachineRef.current = new TuringMachine(mhConfig, [inputStr, inputStr]); // Wait, for multi-head the array input is ignored beyond index 0 but must be matching numTapes length.
-    setMhState(mhMachineRef.current.getState());
+      // --- Multi Head Config ---
+      const mhPreset = languagePresets.find(p => p.id === 'palindrome_multihead')!;
+      const mhConfig: TuringMachineConfig = {
+        numTapes: 2, mode: 'multi-head', states: mhPreset.states, alphabet: ['0', '1'],
+        tapeAlphabet: ['0', '1', '_'], blankSymbol: '_', initialState: mhPreset.initialState,
+        acceptStates: mhPreset.acceptStates, rejectStates: mhPreset.rejectStates, transitions: mhPreset.transitions, startPositions: [0, 0]
+      };
+      mhMachineRef.current = new TuringMachine(mhConfig, [inputStr, inputStr]); 
+      setMhState(mhMachineRef.current.getState());
+    } else {
+      // --- a^n b^n ---
+
+      const stConfig: TuringMachineConfig = {
+        numTapes: 1, mode: 'multi-tape', states: ['q0', 'q_scan_a', 'q_scan_b', 'q_rewind', 'q_check_done', 'qaccept', 'qreject'], alphabet: ['a', 'b'],
+        tapeAlphabet: ['a', 'b', 'X', 'Y', '_'], blankSymbol: '_', initialState: 'q0',
+        acceptStates: ['qaccept'], rejectStates: ['qreject'], transitions: anbnSTTransitions, startPositions: [0]
+      };
+      stMachineRef.current = new TuringMachine(stConfig, [inputStr]);
+      setStState(stMachineRef.current.getState());
+
+      const mtPreset = languagePresets.find(p => p.id === 'anbn')!;
+      const mtConfig: TuringMachineConfig = {
+        numTapes: 2, mode: 'multi-tape', states: mtPreset.states, alphabet: ['a', 'b'],
+        tapeAlphabet: ['a', 'b', 'X', 'Y', '_'], blankSymbol: '_', initialState: mtPreset.initialState,
+        acceptStates: mtPreset.acceptStates, rejectStates: mtPreset.rejectStates, transitions: mtPreset.transitions, startPositions: [0, 0]
+      };
+      mtMachineRef.current = new TuringMachine(mtConfig, [inputStr, '']);
+      setMtState(mtMachineRef.current.getState());
+
+      const mhConfig: TuringMachineConfig = {
+        numTapes: 2, mode: 'multi-head', states: ['q0_setup', 'q1_compare', 'qaccept', 'qreject'], alphabet: ['a', 'b'],
+        tapeAlphabet: ['a', 'b', '_'], blankSymbol: '_', initialState: 'q0_setup',
+        acceptStates: ['qaccept'], rejectStates: ['qreject'], transitions: anbnMHTransitions, startPositions: [0, 0]
+      };
+      mhMachineRef.current = new TuringMachine(mhConfig, [inputStr, inputStr]); 
+      setMhState(mhMachineRef.current.getState());
+    }
   };
 
   useEffect(() => {
     initMachines();
-  }, [inputStr]);
+  }, [inputStr, activeProblem]);
 
   const handleStep = () => {
     let activecount = 0;
@@ -151,7 +209,18 @@ export function EfficiencyRace() {
           <Medal className="h-5 w-5 text-rose-400" />
           <span className="text-sm font-semibold uppercase tracking-widest text-white/40">Live Efficiency Race</span>
           <div className="ml-4 flex gap-2">
-            <span className="bg-rose-500/20 text-rose-300 px-3 py-1 rounded text-xs font-bold border border-rose-500/30">Palindrome Checker</span>
+            <button 
+              onClick={() => { setActiveProblem('palindrome'); setInputStr('101101'); }}
+              className={`px-3 py-1 rounded text-xs font-bold border transition-colors ${activeProblem === 'palindrome' ? 'bg-rose-500/20 text-rose-300 border-rose-500/30' : 'bg-white/5 text-white/40 border-white/10 hover:bg-white/10'}`}
+            >
+              Palindrome Checker
+            </button>
+            <button 
+              onClick={() => { setActiveProblem('anbn'); setInputStr('aaaaabbbbb'); }}
+              className={`px-3 py-1 rounded text-xs font-bold border transition-colors ${activeProblem === 'anbn' ? 'bg-violet-500/20 text-violet-300 border-violet-500/30' : 'bg-white/5 text-white/40 border-white/10 hover:bg-white/10'}`}
+            >
+              a^n b^n
+            </button>
           </div>
         </div>
         <div className="flex items-center gap-4">
@@ -159,12 +228,13 @@ export function EfficiencyRace() {
             type="text" 
             value={inputStr} 
             onChange={(e) => {
-              const val = e.target.value.replace(/[^01]/g, '');
+              const regex = activeProblem === 'palindrome' ? /[^01]/g : /[^ab]/g;
+              const val = e.target.value.replace(regex, '');
               setInputStr(val);
             }}
             disabled={isRunning}
-            className="w-40 px-3 py-1.5 text-sm rounded bg-black/40 border border-white/10 text-white font-mono outline-none focus:border-white/30"
-            placeholder="e.g. 10101"
+            className="w-48 px-3 py-1.5 text-sm rounded bg-black/40 border border-white/10 text-white font-mono outline-none focus:border-white/30"
+            placeholder={activeProblem === 'palindrome' ? "e.g. 10101" : "e.g. aabb"}
           />
         </div>
       </div>
@@ -175,9 +245,13 @@ export function EfficiencyRace() {
         <div className="p-4 rounded-xl border border-white/5 bg-black/20">
           <div className="flex justify-between items-center mb-4">
             <h3 className="font-bold text-white/80">Single-Tape Implementation</h3>
-            <div className="text-xs font-mono text-white/50 flex gap-4">
-               <span>Step: <span className="text-rose-400 font-bold text-sm">{stState?.stepCount || 0}</span></span>
-               <span>Status: <StatusBadge stateObj={stState} /></span>
+            <div className="flex items-center gap-4">
+               <div className="flex flex-col items-end">
+                 <span className="text-[10px] text-white/30 uppercase font-bold tracking-widest">Total Steps</span>
+                 <div className="text-xl font-bold font-mono text-rose-400 bg-rose-500/10 px-3 py-0.5 rounded-md border border-rose-500/20 shadow-[0_0_15px_rgba(244,63,94,0.15)]">{stState?.stepCount || 0}</div>
+               </div>
+               <div className="h-8 w-px bg-white/10"></div>
+               <div className="w-24 text-right"><StatusBadge stateObj={stState} /></div>
             </div>
           </div>
           {stState && <TapeVisualizer tape={stState.tapes[0]} tapeIndex={0} blankSymbol="_" isActive={!stState.isHalted} currentState={stState.currentState} />}
@@ -187,9 +261,13 @@ export function EfficiencyRace() {
         <div className="p-4 rounded-xl border border-white/5 bg-black/20">
           <div className="flex justify-between items-center mb-4">
             <h3 className="font-bold text-white/80">Multi-Tape Implementation <span className="text-cyan-400 text-xs ml-1">(2 Tapes)</span></h3>
-            <div className="text-xs font-mono text-white/50 flex gap-4">
-               <span>Step: <span className="text-cyan-400 font-bold text-sm">{mtState?.stepCount || 0}</span></span>
-               <span>Status: <StatusBadge stateObj={mtState} /></span>
+            <div className="flex items-center gap-4">
+               <div className="flex flex-col items-end">
+                 <span className="text-[10px] text-white/30 uppercase font-bold tracking-widest">Total Steps</span>
+                 <div className="text-xl font-bold font-mono text-cyan-400 bg-cyan-500/10 px-3 py-0.5 rounded-md border border-cyan-500/20 shadow-[0_0_15px_rgba(34,211,238,0.15)]">{mtState?.stepCount || 0}</div>
+               </div>
+               <div className="h-8 w-px bg-white/10"></div>
+               <div className="w-24 text-right"><StatusBadge stateObj={mtState} /></div>
             </div>
           </div>
           {mtState && mtState.tapes.map((t: any, i: number) => (
@@ -203,9 +281,13 @@ export function EfficiencyRace() {
         <div className="p-4 rounded-xl border border-white/5 bg-black/20">
           <div className="flex justify-between items-center mb-4">
             <h3 className="font-bold text-white/80">Multi-Head Implementation <span className="text-violet-400 text-xs ml-1">(2 Heads)</span></h3>
-            <div className="text-xs font-mono text-white/50 flex gap-4">
-               <span>Step: <span className="text-violet-400 font-bold text-sm">{mhState?.stepCount || 0}</span></span>
-               <span>Status: <StatusBadge stateObj={mhState} /></span>
+            <div className="flex items-center gap-4">
+               <div className="flex flex-col items-end">
+                 <span className="text-[10px] text-white/30 uppercase font-bold tracking-widest">Total Steps</span>
+                 <div className="text-xl font-bold font-mono text-violet-400 bg-violet-500/10 px-3 py-0.5 rounded-md border border-violet-500/20 shadow-[0_0_15px_rgba(139,92,246,0.15)]">{mhState?.stepCount || 0}</div>
+               </div>
+               <div className="h-8 w-px bg-white/10"></div>
+               <div className="w-24 text-right"><StatusBadge stateObj={mhState} /></div>
             </div>
           </div>
           {mhState && <MultiHeadVisualizer tape={mhState.tapes[0]} heads={mhState.tapes.map((t: any) => t.headPosition)} blankSymbol="_" isActive={!mhState.isHalted} mode={"multi-head"} currentState={mhState.currentState} />}

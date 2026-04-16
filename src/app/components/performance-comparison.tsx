@@ -18,6 +18,7 @@ interface PerformanceData {
   inputSize: number;
   singleTape: number;
   multiTape: number;
+  multiHead: number;
 }
 
 interface PerformanceComparisonProps {
@@ -33,27 +34,27 @@ export function PerformanceComparison({ numTapes, currentSteps, mode }: Performa
     for (let i = 1; i <= 10; i++) {
       const n = i * 5;
 
-      // Single tape: O(n²) for most non-trivial problems
-      const singleTape = Math.pow(n, 2);
+      // Single tape: Realistic quadratic behavior
+      const singleTape = Math.round(Math.pow(n, 2) * 0.8 + n * 2);
 
-      // Multi-tape/Multi-head: Complexity depends on number of tapes
-      // With k tapes: O(n * log(k)) to O(n * k) depending on coordination
-      // For simplicity: O(n * (1 + 0.15 * k)) where k is number of tapes
-      const tapeOverhead = mode === 'multi-head'
-        ? 1 + (0.1 * numTapes) // Multi-head has less overhead
-        : 1 + (0.15 * numTapes); // Multi-tape has slight coordination overhead
+      // Multi-Tape: O(n) + High Coordination Overhead based on tape count
+      const mtOverhead = 1 + (0.15 * numTapes);
+      const multiTape = Math.round(n * mtOverhead * 4);
 
-      const multiTape = n * tapeOverhead * 10;
+      // Multi-Head: O(n) + Low Coordination Overhead
+      const mhOverhead = 1 + (0.05 * numTapes);
+      const multiHead = Math.round(n * mhOverhead * 4);
 
       result.push({
         id: `perf-${i}`,
         inputSize: n,
         singleTape,
-        multiTape
+        multiTape,
+        multiHead
       });
     }
     return result;
-  }, [numTapes, mode]);
+  }, [numTapes]);
 
   // Calculate theoretical complexity notation
   const getComplexityNotation = () => {
@@ -84,11 +85,15 @@ export function PerformanceComparison({ numTapes, currentSteps, mode }: Performa
           }}
         >
           <p className="text-xs text-white/60 mb-1">Input Size: {label}</p>
-          <p className="text-xs text-rose-400">Single-Tape: {payload[0].value} steps</p>
-          <p className="text-xs text-cyan-400">Multi-Tape: {payload[1].value} steps</p>
-          <p className="text-xs text-violet-400 mt-1">
-            Speedup: {(payload[0].value / payload[1].value).toFixed(2)}x
-          </p>
+          <p className="text-xs text-rose-400">Single-Tape (O(n²)): {payload[0].value} steps</p>
+          <p className="text-xs text-cyan-400">Multi-Tape (O(n)): {payload[1].value} steps</p>
+          <p className="text-xs text-violet-400">Multi-Head (O(n)): {payload[2].value} steps</p>
+          <div className="mt-2 pt-2 border-t border-white/10 text-xs font-semibold text-white/70">
+            Speedup vs Single-Tape:
+            <br/><span className="text-cyan-400">Tapes: {(payload[0].value / payload[1].value).toFixed(1)}x</span>
+            <span className="mx-2 opacity-30">|</span>
+            <span className="text-violet-400">Heads: {(payload[0].value / payload[2].value).toFixed(1)}x</span>
+          </div>
         </div>
       );
     }
@@ -178,15 +183,15 @@ export function PerformanceComparison({ numTapes, currentSteps, mode }: Performa
             <Tooltip key="tooltip" content={<CustomTooltip />} />
             <Legend
               key="legend"
-              wrapperStyle={{ fontSize: '10px', color: 'rgba(255,255,255,0.6)' }}
-              iconType="line"
+              wrapperStyle={{ fontSize: '11px', color: 'rgba(255,255,255,0.8)', paddingTop: '20px' }}
+              iconType="circle"
             />
             <Line
               key="single-tape-line"
               type="monotone"
               dataKey="singleTape"
               stroke="#f43f5e"
-              strokeWidth={2}
+              strokeWidth={3}
               dot={{ fill: '#f43f5e', r: 3 }}
               name="Single-Tape"
               isAnimationActive={false}
@@ -196,9 +201,19 @@ export function PerformanceComparison({ numTapes, currentSteps, mode }: Performa
               type="monotone"
               dataKey="multiTape"
               stroke="#22d3ee"
-              strokeWidth={2}
+              strokeWidth={3}
               dot={{ fill: '#22d3ee', r: 3 }}
               name="Multi-Tape"
+              isAnimationActive={false}
+            />
+            <Line
+              key="multi-head-line"
+              type="monotone"
+              dataKey="multiHead"
+              stroke="#a78bfa"
+              strokeWidth={3}
+              dot={{ fill: '#a78bfa', r: 3 }}
+              name="Multi-Head"
               isAnimationActive={false}
             />
           </LineChart>
