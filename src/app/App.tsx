@@ -14,6 +14,7 @@ import { TransitionIndicator } from './components/transition-indicator';
 import { LanguageTester, languagePresets } from './components/language-tester';
 import { TagInput } from './components/tag-input';
 import { OnboardingTour } from './components/onboarding-tour';
+import { EfficiencyRace } from './components/efficiency-race';
 
 interface TMConfiguration {
   numTapes: number;
@@ -560,7 +561,8 @@ function App() {
                     currentState={machineState.currentState} lastTransition={machineState.lastTransition} />
                 </div>
 
-                <div id="performance" className="scroll-mt-6">
+                <div id="performance" className="scroll-mt-6 space-y-6">
+                  <EfficiencyRace />
                   <PerformanceComparison numTapes={tmConfig.numTapes} currentSteps={machineState.stepCount} mode={tmConfig.mode} />
                 </div>
             </div>
