@@ -577,11 +577,11 @@ function App() {
                   <User className="h-4 w-4 text-violet-400" />
                   <span className="text-xl font-bold tracking-tight">Deepa Kumar</span>
                 </div>
-                <div className="flex items-center gap-4 text-[11px] font-bold text-white/40 uppercase tracking-widest mt-1">
-                  <span className="px-2 py-0.5 rounded-md bg-white/[0.03] border border-white/[0.05]">2024UCS1677</span>
+                <div className="flex items-center gap-4 text-[11px] font-bold text-white/40 tracking-widest mt-1">
+                  <span className="px-2 py-0.5 rounded-md bg-white/[0.03] border border-white/[0.05] uppercase">2024UCS1677</span>
                   <div className="flex items-center gap-1.5 hover:text-rose-400 transition-colors cursor-pointer group">
                     <Mail className="h-3 w-3 group-hover:scale-110 transition-transform" />
-                    <a href="mailto:deepak.kumar_ug24@nsut.ac.in">deepak.kumar_ug24@nsut.ac.in</a>
+                    <a href="mailto:deepak.kumar_ug24@nsut.ac.in" className="lowercase">deepak.kumar_ug24@nsut.ac.in</a>
                   </div>
                 </div>
               </div>
