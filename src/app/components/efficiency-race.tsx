@@ -75,7 +75,7 @@ const anbnMHTransitions: Transition[] = [
 
 export function EfficiencyRace() {
   const [activeProblem, setActiveProblem] = useState<'palindrome' | 'anbn'>('palindrome');
-  const [inputStr, setInputStr] = useState('101101');
+  const [inputStr, setInputStr] = useState('11000011');
   const [isRunning, setIsRunning] = useState(false);
   const [speed, setSpeed] = useState(0.8);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -210,7 +210,7 @@ export function EfficiencyRace() {
           <span className="text-sm font-semibold uppercase tracking-widest text-white/40">Live Efficiency Race</span>
           <div className="ml-4 flex gap-2">
             <button 
-              onClick={() => { setActiveProblem('palindrome'); setInputStr('101101'); }}
+              onClick={() => { setActiveProblem('palindrome'); setInputStr('11000011'); }}
               className={`px-3 py-1 rounded text-xs font-bold border transition-colors ${activeProblem === 'palindrome' ? 'bg-rose-500/20 text-rose-300 border-rose-500/30' : 'bg-white/5 text-white/40 border-white/10 hover:bg-white/10'}`}
             >
               Palindrome Checker
