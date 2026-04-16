@@ -110,13 +110,30 @@ export function OnboardingTour({ onStepChange, onDismiss }: OnboardingTourProps)
     const el = document.getElementById(stepDef.targetId);
     if (!el) { setSpotlight(null); return; }
 
-    // SCROLL: put the element at the very top of the scroll container
-    const sc = document.querySelector('[data-main-scroll]') as HTMLElement | null;
-    if (sc && sc.contains(el)) {
-      // Calculate where to scroll so element.top aligns with container.top
+    // SCROLL: Dynamically find the scroll container and jump to it with an offset
+    const getScrollParent = (node: HTMLElement | null): HTMLElement | null => {
+      if (!node || node === document.body) return null;
+      if (node.scrollHeight > node.clientHeight && window.getComputedStyle(node).overflowY !== 'visible') {
+        return node;
+      }
+      return getScrollParent(node.parentElement);
+    };
+
+    const sc = getScrollParent(el);
+
+    if (sc) {
       const elTop = el.getBoundingClientRect().top;
       const scTop = sc.getBoundingClientRect().top;
-      sc.scrollTop += (elTop - scTop - 8);  // 8px breathing room
+      sc.scrollTo({
+        top: sc.scrollTop + (elTop - scTop) - 24, // 24px breathing room from top
+        behavior: 'smooth'
+      });
+    } else {
+      // Fallback to window scroll
+      window.scrollTo({
+        top: el.getBoundingClientRect().top + window.scrollY - 80,
+        behavior: 'smooth'
+      });
     }
 
     // MEASURE after scroll completes (give 600ms)
